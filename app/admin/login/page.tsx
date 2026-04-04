@@ -14,20 +14,13 @@ export default function AdminLogin() {
     e.preventDefault()
     setError('')
     setLoading(true)
-
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-
-      if (!res.ok) {
-        setError('Invalid email or password')
-        setLoading(false)
-        return
-      }
-
+      if (!res.ok) { setError('Invalid email or password'); setLoading(false); return }
       router.push('/admin')
     } catch {
       setError('Something went wrong. Please try again.')
@@ -36,50 +29,29 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center px-4">
+    <div className="min-h-[70vh] flex items-center justify-center px-4">
       <div className="card max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="font-display text-3xl text-darkbrown italic mb-2">Admin Login</h1>
-          <p className="text-sand-400 font-body text-sm">Sign in to manage your services</p>
+          <p className="font-script text-teal-500 text-xl mb-1">admin</p>
+          <h1 className="font-display text-3xl text-darkbrown">Sign In</h1>
+          <div className="w-10 h-0.5 bg-mustard-400 mx-auto mt-3 rounded-full" />
         </div>
-
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 text-sm font-body px-4 py-3 rounded-lg">
+            <div className="border-2 border-terracotta-300 bg-terracotta-50 text-terracotta-700 text-sm font-body px-4 py-3 rounded-2xl">
               {error}
             </div>
           )}
-
           <div>
-            <label className="block font-body text-sm text-sand-600 mb-1">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="input-field"
-              placeholder="admin@bienbonita.com"
-            />
+            <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Email</label>
+            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="input-field" placeholder="admin@bienbonita.com" />
           </div>
-
           <div>
-            <label className="block font-body text-sm text-sand-600 mb-1">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="input-field"
-              placeholder="Enter your password"
-            />
+            <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Password</label>
+            <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="input-field" placeholder="••••••••" />
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full disabled:opacity-50"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
+          <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-50">
+            {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
       </div>

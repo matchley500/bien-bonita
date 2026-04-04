@@ -1,52 +1,56 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Footer() {
   return (
-    <footer className="bg-darkbrown text-sand-200 mt-auto">
+    <footer className="bg-darkbrown text-sand">
       <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+
           {/* Brand */}
-          <div>
-            <h3 className="font-display text-2xl text-white italic mb-3">Bien Bonita</h3>
-            <p className="text-sand-300 text-sm leading-relaxed">
-              Premium nail care in the heart of the Southwest. Where beauty meets desert warmth.
-            </p>
+          <div className="flex flex-col gap-4">
+            <Image src="/favicon.png" alt="Bien Bonita" width={64} height={64} className="rounded-full border-2 border-terracotta-400" />
+            <div>
+              <p className="font-body text-terracotta-500 text-2xl tracking-widest">BIEN BONITA</p>
+              <p className="font-script text-base text-sand/60 mb-3">Nails &amp; Spa</p>
+              <p className="text-sand/60 text-xs leading-relaxed font-body tracking-wide">
+                Premium nail care rooted in the warmth of the Southwest.
+              </p>
+            </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Links */}
           <div>
-            <h4 className="font-body font-bold text-white mb-3 uppercase tracking-wider text-sm">Quick Links</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/" className="hover:text-terracotta-400 transition-colors">Home</Link></li>
-              <li><Link href="/book" className="hover:text-terracotta-400 transition-colors">Services & Booking</Link></li>
-              <li><Link href="/book" className="hover:text-terracotta-400 transition-colors">Book an Appointment</Link></li>
-              <li><Link href="/admin/login" className="hover:text-terracotta-400 transition-colors text-sand-400">Admin</Link></li>
+            <h4 className="font-body font-bold text-cream/80 mb-4 uppercase tracking-widest text-xs">Navigate</h4>
+            <ul className="space-y-2 text-sm font-body">
+              <li><Link href="/" className="hover:text-terracotta-400 transition-colors text-sand/60">Home</Link></li>
+              <li><Link href="/book" className="hover:text-terracotta-400 transition-colors text-sand/60">Services & Booking</Link></li>
+              <li><Link href="/#about" className="hover:text-terracotta-400 transition-colors text-sand/60">About</Link></li>
+              <li><Link href="/admin/login" className="hover:text-terracotta-400 transition-colors text-sand/30 text-xs">Admin</Link></li>
             </ul>
           </div>
 
           {/* Contact */}
           <div>
-            <h4 className="font-body font-bold text-white mb-3 uppercase tracking-wider text-sm">Get in Touch</h4>
-            <ul className="space-y-2 text-sm">
+            <h4 className="font-body font-bold text-cream/80 mb-4 uppercase tracking-widest text-xs">Get in Touch</h4>
+            <ul className="space-y-3 text-sm font-body text-sand/60">
               <li className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-terracotta-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
+                <span className="text-terracotta-400">✉</span>
                 bienbonitanailandspa@gmail.com
               </li>
               <li className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-terracotta-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+                <span className="text-terracotta-400">⌖</span>
                 Southwest, USA
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-10 pt-6 border-t border-sand-800 text-center text-xs text-sand-400">
-          &copy; {new Date().getFullYear()} Bien Bonita Nails & Spa. All rights reserved.
+        <div className="mt-10 pt-6 border-t border-sand/10 text-center">
+          <p className="font-body text-terracotta-400/60 text-lg mb-1 tracking-widest">BIEN BONITA</p>
+          <p className="text-xs text-sand/30 font-body tracking-widest uppercase">
+            &copy; {new Date().getFullYear()} All rights reserved
+          </p>
         </div>
       </div>
     </footer>

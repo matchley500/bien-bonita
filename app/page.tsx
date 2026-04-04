@@ -1,128 +1,122 @@
 import Link from 'next/link'
-import ServicePreview from '@/components/ServicePreview'
 
 export default function Home() {
   return (
     <>
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-sand-50 via-warmwhite to-terracotta-50 overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-20 right-20 w-72 h-72 bg-terracotta-500 rounded-full blur-3xl" />
-          <div className="absolute bottom-10 left-10 w-96 h-96 bg-sage-400 rounded-full blur-3xl" />
-        </div>
-        <div className="max-w-6xl mx-auto px-4 py-20 md:py-32 relative z-10">
-          <div className="text-center max-w-3xl mx-auto">
-            <p className="text-sage-500 font-body tracking-[0.3em] uppercase text-sm mb-4">
-              Southwest&apos;s Premier Nail Studio
-            </p>
-            <h1 className="font-display text-5xl md:text-7xl text-darkbrown italic leading-tight mb-6">
-              Bien Bonita
-              <span className="block text-terracotta-500">Nails & Spa</span>
-            </h1>
-            <p className="font-body text-lg md:text-xl text-sand-500 mb-10 max-w-xl mx-auto leading-relaxed">
-              Where desert warmth meets artistry. Treat yourself to premium nail care
-              crafted with love and precision.
-            </p>
-            <div className="flex justify-center">
-              <Link href="/book" className="btn-primary text-lg px-10 py-4">
-                Book Your Session
-              </Link>
-            </div>
-          </div>
-        </div>
+      {/* ── Hero ── */}
+      <section className="relative overflow-hidden bg-parchment py-24 md:py-40">
+        {/* Organic blob backgrounds */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-terracotta-200/30 blur-3xl translate-x-1/3 -translate-y-1/4 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-teal-200/30 blur-3xl -translate-x-1/4 translate-y-1/4 pointer-events-none" />
 
-        {/* Decorative divider */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-            <path d="M0 60L1440 60L1440 30C1440 30 1200 0 720 0C240 0 0 30 0 30L0 60Z" fill="#FDF8F4"/>
-          </svg>
+        <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
+          <p className="font-script text-teal-500 text-2xl mb-2">welcome to</p>
+          <h1 className="font-display text-6xl md:text-9xl text-darkbrown leading-none mb-3 tracking-wide uppercase">
+            BIEN BONITA
+          </h1>
+          <p className="font-script text-terracotta-500 text-3xl md:text-4xl mb-8">
+            Nails &amp; Spa
+          </p>
+          <p className="font-body text-sm md:text-base text-darkbrown/60 mb-12 max-w-lg mx-auto leading-loose tracking-wide uppercase">
+            Premium nail care rooted in the warmth of the Southwest — crafted with love, groove & good vibes.
+          </p>
+          <Link href="/book" className="btn-primary text-sm px-14 py-4">
+            Book Your Session
+          </Link>
         </div>
       </section>
 
-      {/* Services Section */}
-      <section id="services" className="py-16 md:py-24">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <p className="text-terracotta-500 font-body tracking-[0.2em] uppercase text-sm mb-2">
-              What We Offer
-            </p>
-            <h2 className="font-display text-3xl md:text-5xl text-darkbrown italic">
-              Our Services
-            </h2>
-            <div className="mt-4 w-20 h-0.5 bg-gold mx-auto" />
-          </div>
+      {/* ── Wavy divider terracotta ── */}
+      <div className="wave-divider -mt-1">
+        <svg viewBox="0 0 1440 80" preserveAspectRatio="none" className="w-full h-16 md:h-20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,40 C180,80 360,0 540,40 C720,80 900,0 1080,40 C1260,80 1380,20 1440,40 L1440,80 L0,80 Z" fill="#C4622D"/>
+        </svg>
+      </div>
 
-          <ServicePreview />
+      {/* ── About ── */}
+      <section id="about" className="bg-terracotta-500 text-cream py-16 md:py-24 -mt-1 relative overflow-hidden">
 
-          <div className="text-center mt-12">
-            <Link href="/book" className="btn-primary text-lg px-10">
-              Book Your Appointment
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section id="about" className="py-16 md:py-24 bg-gradient-to-br from-sand-50 to-warmwhite">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+        <div className="max-w-6xl mx-auto px-4 relative z-10">
+          <div className="grid md:grid-cols-2 gap-14 items-center">
             <div>
-              <p className="text-terracotta-500 font-body tracking-[0.2em] uppercase text-sm mb-2">
-                About Us
-              </p>
-              <h2 className="font-display text-3xl md:text-5xl text-darkbrown italic mb-6">
-                Beauty Inspired by the Desert
+              <p className="font-script text-mustard-300 text-2xl mb-2">my story</p>
+              <h2 className="font-display text-4xl md:text-6xl text-cream mb-6 leading-tight uppercase tracking-wide">
+                Beauty With Soul
               </h2>
-              <div className="space-y-4 text-sand-600 font-body leading-relaxed">
+              <div className="w-16 h-1 bg-mustard-400 rounded-full mb-8" />
+              <div className="space-y-4 text-cream/75 font-body leading-loose text-sm tracking-wide">
                 <p>
-                  At Bien Bonita Nails & Spa, we believe every set of nails tells a story.
-                  Inspired by the warm hues and natural beauty of the Southwest, we bring
-                  artistry and care to every appointment.
+                  At BIEN BONITA, I believe every set of nails tells a story.
+                  Inspired by the warm hues and desert spirit of the Southwest, and
+                  the boho vibes of the San Diego beach.
                 </p>
                 <p>
-                  From classic manicures to intricate nail art, Gel-X extensions to luxurious
-                  spa pedicures &mdash; each service is performed with meticulous attention to
-                  detail and the highest quality products.
+                  From Gel-X extensions to hand-painted nail art, luxurious spa pedicures
+                  to classic manicures — each service is crafted with meticulous attention
+                  to detail and the highest quality products.
                 </p>
                 <p>
-                  Whether you&apos;re looking for your everyday signature look or something
-                  special for an occasion, we&apos;re here to make you feel <em>bien bonita</em>.
+                  Whether you want your everyday look or something special for an occasion,
+                  Im here to make you feel pampered and beautiful. ~ {' '}
+                  <em className="text-mustard-300 not-italic font-script text-lg">Bien Bonita</em>{' '}
+                  <em className="text-cream/60 not-italic font-script text-base">Nails &amp; Spa</em>.
                 </p>
               </div>
             </div>
-            <div className="relative">
-              <div className="bg-gradient-to-br from-terracotta-100 to-sand-200 rounded-3xl aspect-square flex items-center justify-center">
-                <div className="text-center p-8">
-                  <div className="w-24 h-24 mx-auto mb-6 bg-terracotta-500/10 rounded-full flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-terracotta-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  </div>
-                  <p className="font-display text-2xl text-darkbrown italic mb-2">Made with Love</p>
-                  <p className="text-sand-500 font-body">Every nail, every detail</p>
+
+            {/* Groovy circle badge */}
+            <div className="flex items-center justify-center">
+              <div className="relative w-72 h-72">
+                <div className="absolute inset-0 rounded-full border-4 border-cream/20" />
+                <div className="absolute inset-5 rounded-full border-2 border-mustard-400/40" />
+                <div className="absolute inset-10 rounded-full bg-terracotta-600/50 border border-cream/10" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
+                  <p className="font-body text-[9px] tracking-[0.25em] uppercase text-cream/40">every detail</p>
+                  <p className="font-script text-mustard-300 text-2xl mb-1">made</p>
+                  <p className="font-body text-[10px] tracking-[0.3em] uppercase text-cream/50 mb-1">with</p>
+                  <p className="font-body text-cream text-3xl mb-3 tracking-widest">LOVE</p>
+                  <div className="h-px w-10 bg-mustard-400/60 mb-3" />
+                  
                 </div>
               </div>
-              <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-sage-200 rounded-2xl -z-10" />
-              <div className="absolute -top-4 -left-4 w-16 h-16 bg-terracotta-200 rounded-xl -z-10" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 md:py-20 bg-darkbrown text-center">
-        <div className="max-w-3xl mx-auto px-4">
-          <h2 className="font-display text-3xl md:text-4xl text-white italic mb-4">
-            Ready to Feel Bonita?
+      {/* ── Wavy divider teal ── */}
+      <div className="wave-divider -mt-1">
+        <svg viewBox="0 0 1440 80" preserveAspectRatio="none" className="w-full h-16 md:h-20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,40 C180,0 360,80 540,40 C720,0 900,80 1080,40 C1260,0 1380,60 1440,40 L1440,0 L0,0 Z" fill="#C4622D"/>
+          <path d="M0,60 C200,20 400,80 600,50 C800,20 1000,80 1200,50 C1350,30 1420,60 1440,60 L1440,80 L0,80 Z" fill="#4A8280"/>
+        </svg>
+      </div>
+
+      {/* ── CTA ── */}
+      <section className="bg-teal-500 text-cream py-20 -mt-1 text-center relative overflow-hidden">
+
+        <div className="max-w-3xl mx-auto px-4 relative z-10">
+          <p className="font-script text-mustard-300 text-2xl mb-2">ready?</p>
+          <h2 className="font-display text-5xl md:text-6xl text-cream mb-4 uppercase tracking-wide">
+            Feel BIEN BONITA
           </h2>
-          <p className="text-sand-300 font-body text-lg mb-8">
-            Choose your services and book your next appointment in just a few taps.
+          <div className="w-16 h-1 bg-mustard-400 mx-auto mb-8 rounded-full" />
+          <p className="text-cream/70 font-body text-sm mb-10 tracking-widest uppercase">
+            Choose your services & book in just a few taps.
           </p>
-          <Link href="/book" className="bg-terracotta-500 text-white px-10 py-4 rounded-full font-body font-semibold text-lg hover:bg-terracotta-400 transition-colors inline-block">
+          <Link href="/book" className="bg-mustard-500 text-darkbrown px-14 py-4 rounded-full font-body font-bold tracking-widest uppercase text-sm hover:bg-mustard-400 transition-all duration-200 inline-block shadow-[0_4px_14px_rgba(200,144,16,0.4)] active:scale-95">
             Book Now
           </Link>
         </div>
       </section>
+
+      {/* ── Footer wave transition ── */}
+      <div className="wave-divider -mt-1">
+        <svg viewBox="0 0 1440 60" preserveAspectRatio="none" className="w-full h-12" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,30 C240,60 480,0 720,30 C960,60 1200,0 1440,30 L1440,0 L0,0 Z" fill="#4A8280"/>
+          <path d="M0,60 L1440,60 L1440,30 C1200,0 960,60 720,30 C480,0 240,60 0,30 Z" fill="#2C1A0E"/>
+        </svg>
+      </div>
     </>
   )
 }

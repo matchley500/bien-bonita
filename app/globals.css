@@ -3,34 +3,81 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-  }
-
+  html { scroll-behavior: smooth; }
   body {
-    @apply bg-warmwhite text-darkbrown;
+    @apply bg-parchment text-darkbrown;
+    background-image:
+      radial-gradient(ellipse at 15% 20%, rgba(196,98,45,0.07) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 75%, rgba(74,130,128,0.07) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 50%, rgba(200,144,16,0.04) 0%, transparent 70%);
   }
 }
 
 @layer components {
+
+  /* ── Buttons ── */
   .btn-primary {
-    @apply bg-terracotta-500 text-white px-6 py-3 rounded-full font-body font-semibold
-           hover:bg-terracotta-600 transition-colors duration-200 inline-block text-center;
+    @apply bg-terracotta-500 text-cream px-7 py-3 rounded-full font-body font-bold
+           tracking-widest uppercase text-sm
+           hover:bg-terracotta-400 active:scale-95
+           transition-all duration-200 inline-block text-center
+           shadow-[0_4px_14px_rgba(196,98,45,0.35)];
   }
 
   .btn-secondary {
-    @apply border-2 border-terracotta-500 text-terracotta-500 px-6 py-3 rounded-full font-body font-semibold
-           hover:bg-terracotta-500 hover:text-white transition-colors duration-200 inline-block text-center;
+    @apply border-2 border-darkbrown text-darkbrown px-7 py-3 rounded-full font-body font-bold
+           tracking-widest uppercase text-sm
+           hover:bg-darkbrown hover:text-cream active:scale-95
+           transition-all duration-200 inline-block text-center;
   }
 
+  .btn-teal {
+    @apply bg-teal-500 text-cream px-7 py-3 rounded-full font-body font-bold
+           tracking-widest uppercase text-sm
+           hover:bg-teal-400 active:scale-95
+           transition-all duration-200 inline-block text-center
+           shadow-[0_4px_14px_rgba(74,130,128,0.35)];
+  }
+
+  /* ── Inputs ── */
   .input-field {
-    @apply w-full px-4 py-3 rounded-lg border border-sand-200 bg-white
-           focus:outline-none focus:ring-2 focus:ring-terracotta-400 focus:border-transparent
-           font-body text-darkbrown placeholder:text-sand-400;
+    @apply w-full px-4 py-3 border-2 border-sand/60 bg-cream/80
+           focus:outline-none focus:border-terracotta-400 focus:bg-cream
+           font-body text-darkbrown placeholder:text-sand
+           rounded-2xl transition-colors duration-150;
   }
 
+  /* ── Cards ── */
   .card {
-    @apply bg-white rounded-2xl shadow-sm border border-sand-100 p-6
-           hover:shadow-md transition-shadow duration-200;
+    @apply bg-cream/90 border border-sand/40 rounded-3xl p-6
+           shadow-[0_2px_20px_rgba(44,26,14,0.08)];
+  }
+
+  /* ── Badges ── */
+  .badge {
+    @apply text-xs font-body font-bold tracking-[0.18em] uppercase
+           bg-teal-500 text-cream px-3 py-1 rounded-full;
+  }
+  .badge-mustard {
+    @apply text-xs font-body font-bold tracking-[0.18em] uppercase
+           bg-mustard-500 text-cream px-3 py-1 rounded-full;
+  }
+  .badge-terra {
+    @apply text-xs font-body font-bold tracking-[0.18em] uppercase
+           bg-terracotta-500 text-cream px-3 py-1 rounded-full;
+  }
+  .badge-forest {
+    @apply text-xs font-body font-bold tracking-[0.18em] uppercase
+           bg-forest-500 text-cream px-3 py-1 rounded-full;
+  }
+
+  /* ── Overline label ── */
+  .overline {
+    @apply font-script text-terracotta-500 text-lg block mb-1;
+  }
+
+  /* ── Wavy divider ── */
+  .wave-divider {
+    @apply w-full overflow-hidden leading-none;
   }
 }
