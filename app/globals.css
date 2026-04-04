@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-warmwhite text-darkbrown;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-terracotta-500 text-white px-6 py-3 rounded-full font-body font-semibold
+           hover:bg-terracotta-600 transition-colors duration-200 inline-block text-center;
+  }
+
+  .btn-secondary {
+    @apply border-2 border-terracotta-500 text-terracotta-500 px-6 py-3 rounded-full font-body font-semibold
+           hover:bg-terracotta-500 hover:text-white transition-colors duration-200 inline-block text-center;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg border border-sand-200 bg-white
+           focus:outline-none focus:ring-2 focus:ring-terracotta-400 focus:border-transparent
+           font-body text-darkbrown placeholder:text-sand-400;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-sand-100 p-6
+           hover:shadow-md transition-shadow duration-200;
+  }
+}
