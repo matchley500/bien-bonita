@@ -113,14 +113,14 @@ function MiniCalendar({
               {day}
               {marker && !isSelected && !isWeekdayBlocked && (
                 <span className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full
-                  ${marker === 'blocked' ? 'bg-red-400' : marker === 'both' ? 'bg-mustard-500' : 'bg-terracotta-400'}`} />
+                  ${marker === 'blocked' ? 'bg-red-400' : 'bg-green-500'}`} />
               )}
             </button>
           )
         })}
       </div>
       <div className="mt-4 pt-3 border-t border-sand/30 flex flex-wrap gap-3 text-[10px] font-body text-darkbrown/40">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-terracotta-400 inline-block" />Appointments</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Appointments</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" />Blocked</span>
         {blockedWeekdays.length > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-200 inline-block" />Recurring block</span>}
       </div>
