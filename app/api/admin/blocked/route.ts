@@ -1,30 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession } from '@/lib/auth'
-import fs from 'fs'
-import path from 'path'
-
-const dataPath = path.join(process.cwd(), 'data', 'blocked.json')
-
-interface BlockedData {
-  dates: string[]
-  slots: { date: string; time: string }[]
-  weekdays: number[] // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
-}
-
-function read(): BlockedData {
-  try {
-    const d = JSON.parse(fs.readFileSync(dataPath, 'utf-8'))
-    return { dates: d.dates ?? [], slots: d.slots ?? [], weekdays: d.weekdays ?? [] }
-  } catch { return { dates: [], slots: [], weekdays: [] } }
-}
-
-function write(data: BlockedData) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2))
-}
+import { getBlocked, setBlocked } from '@/lib/db'
 
 export async function GET() {
   if (!(await verifySession())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  return NextResponse.json(read())
+  return NextResponse.json(await getBlocked())
 }
 
 // Body:
@@ -34,7 +14,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   if (!(await verifySession())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await request.json()
-  const data = read()
+  const data = await getBlocked()
 
   if (body.type === 'date') {
     if (!data.dates.includes(body.date)) data.dates.push(body.date)
@@ -45,7 +25,7 @@ export async function POST(request: NextRequest) {
     if (!data.weekdays.includes(body.day)) data.weekdays.push(body.day)
   }
 
-  write(data)
+  await setBlocked(data)
   return NextResponse.json(data)
 }
 
@@ -53,7 +33,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   if (!(await verifySession())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await request.json()
-  const data = read()
+  const data = await getBlocked()
 
   if (body.type === 'date') {
     data.dates = data.dates.filter(d => d !== body.date)
@@ -63,6 +43,6 @@ export async function DELETE(request: NextRequest) {
     data.weekdays = data.weekdays.filter(d => d !== body.day)
   }
 
-  write(data)
+  await setBlocked(data)
   return NextResponse.json(data)
 }

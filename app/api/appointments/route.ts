@@ -1,20 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
-
-const dataPath = path.join(process.cwd(), 'data', 'appointments.json')
-
-function readAppointments() {
-  try {
-    return JSON.parse(fs.readFileSync(dataPath, 'utf-8'))
-  } catch {
-    return []
-  }
-}
-
-function writeAppointments(appointments: unknown[]) {
-  fs.writeFileSync(dataPath, JSON.stringify(appointments, null, 2))
-}
+import { getAppointments, setAppointments } from '@/lib/db'
 
 // Public — customers submit booking requests
 export async function POST(request: NextRequest) {
@@ -25,12 +10,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const appointments = readAppointments()
+  const appointments = await getAppointments()
 
   // Check if the slot is already taken
-  const conflict = appointments.find(
-    (a: { date: string; time: string }) => a.date === date && a.time === time
-  )
+  const conflict = appointments.find(a => a.date === date && a.time === time)
   if (conflict) {
     return NextResponse.json({ error: 'That time slot is no longer available.' }, { status: 409 })
   }
@@ -52,7 +35,7 @@ export async function POST(request: NextRequest) {
   }
 
   appointments.push(newAppointment)
-  writeAppointments(appointments)
+  await setAppointments(appointments)
 
   return NextResponse.json(newAppointment, { status: 201 })
 }
