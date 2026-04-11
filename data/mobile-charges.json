@@ -1,0 +1,7 @@
+{
+  "areas": [
+    { "id": "in-town", "label": "In Town", "fee": 10 },
+    { "id": "vail-rita-ranch", "label": "Vail / Rita Ranch", "fee": 20 },
+    { "id": "north-tucson-oro-valley", "label": "North Tucson / Oro Valley", "fee": 25 }
+  ]
+}

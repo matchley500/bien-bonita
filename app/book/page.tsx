@@ -13,26 +13,22 @@ interface Service {
   hasGelUpgrade?: boolean
 }
 
+interface MobileArea {
+  id: string
+  label: string
+  fee: number
+}
+
 const categoryLabels: Record<string, string> = {
-  manicure:   'Manicures',
-  pedicure:   'Pedicures',
-  gel:        'Gel Polish',
-  extensions: 'Extensions',
-  removals:   'Removals',
-  designs:    'Designs',
-  addons:     'Add-Ons',
+  manicure: 'Manicures', pedicure: 'Pedicures', gel: 'Gel Polish',
+  extensions: 'Extensions', removals: 'Removals', designs: 'Designs', addons: 'Add-Ons',
 }
-
 const categoryColors: Record<string, string> = {
-  manicure:   'bg-terracotta-500 text-cream',
-  pedicure:   'bg-teal-500 text-cream',
-  gel:        'bg-forest-500 text-cream',
-  extensions: 'bg-mustard-500 text-darkbrown',
-  removals:   'bg-terracotta-700 text-cream',
-  designs:    'bg-teal-600 text-cream',
-  addons:     'bg-forest-600 text-cream',
+  manicure: 'bg-terracotta-500 text-cream', pedicure: 'bg-teal-500 text-cream',
+  gel: 'bg-forest-500 text-cream', extensions: 'bg-mustard-500 text-darkbrown',
+  removals: 'bg-terracotta-700 text-cream', designs: 'bg-teal-600 text-cream',
+  addons: 'bg-forest-600 text-cream',
 }
-
 const categoryOrder = ['manicure', 'pedicure', 'gel', 'extensions', 'removals', 'designs', 'addons']
 const GEL_UPGRADE_PRICE = 15
 
@@ -43,30 +39,197 @@ function buildTimeSlots(): { value: string; label: string }[] {
     const period = h < 12 ? 'AM' : 'PM'
     const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h
     const displayM = m === 0 ? '00' : '30'
-    slots.push({ value: `${String(h).padStart(2,'0')}:${displayM}`, label: `${displayH}:${displayM} ${period}` })
+    slots.push({ value: `${String(h).padStart(2, '0')}:${displayM}`, label: `${displayH}:${displayM} ${period}` })
     m += 30; if (m === 60) { m = 0; h++ }
   }
   return slots
 }
-const TIME_SLOTS = buildTimeSlots()
+const ALL_TIME_SLOTS = buildTimeSlots()
 
+function formatTime(val: string) {
+  return ALL_TIME_SLOTS.find(s => s.value === val)?.label ?? val
+}
+
+function toDateKey(y: number, m: number, d: number) {
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+// ── Booking Calendar ─────────────────────────────────────────────────────────
+function BookingCalendar({
+  unavailableDates,
+  selectedDate,
+  onSelectDate,
+  viewing,
+  onPrev,
+  onNext,
+}: {
+  unavailableDates: Set<string>
+  selectedDate: string
+  onSelectDate: (date: string) => void
+  viewing: Date
+  onPrev: () => void
+  onNext: () => void
+}) {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const year = viewing.getFullYear()
+  const month = viewing.getMonth()
+  const firstDay = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const monthLabel = viewing.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const todayKey = toDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate())
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={onPrev} className="w-9 h-9 rounded-full hover:bg-parchment flex items-center justify-center text-darkbrown/60 hover:text-darkbrown text-lg transition-colors">‹</button>
+        <p className="font-sub font-bold text-darkbrown tracking-wide">{monthLabel}</p>
+        <button onClick={onNext} className="w-9 h-9 rounded-full hover:bg-parchment flex items-center justify-center text-darkbrown/60 hover:text-darkbrown text-lg transition-colors">›</button>
+      </div>
+
+      <div className="grid grid-cols-7 mb-1">
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+          <div key={d} className="text-center text-[10px] font-body font-bold uppercase tracking-widest text-darkbrown/30 py-1">{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-y-1">
+        {Array.from({ length: firstDay }).map((_, i) => <div key={`b${i}`} />)}
+        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+          const key = toDateKey(year, month + 1, day)
+          const isPast = new Date(year, month, day) < today
+          const isUnavailable = unavailableDates.has(key)
+          const disabled = isPast || isUnavailable
+          const isSelected = key === selectedDate
+          const isToday = key === todayKey
+
+          return (
+            <button
+              key={day}
+              onClick={() => !disabled && onSelectDate(key)}
+              disabled={disabled}
+              title={isUnavailable && !isPast ? 'Fully booked' : undefined}
+              className={`
+                mx-auto w-9 h-9 rounded-full text-sm font-body flex items-center justify-center transition-all
+                ${isSelected
+                  ? 'bg-terracotta-500 text-cream font-bold shadow-md'
+                  : disabled
+                  ? 'text-darkbrown/20 cursor-not-allowed line-through'
+                  : isToday
+                  ? 'border-2 border-terracotta-400 text-terracotta-600 font-bold hover:bg-terracotta-50'
+                  : 'hover:bg-terracotta-50 text-darkbrown/80 cursor-pointer'}
+              `}
+            >
+              {day}
+            </button>
+          )
+        })}
+      </div>
+
+      <p className="mt-4 text-[10px] font-body text-darkbrown/30 tracking-wide text-center">
+        Crossed-out dates are fully booked or unavailable
+      </p>
+    </div>
+  )
+}
+
+// ── Time Slot Picker ──────────────────────────────────────────────────────────
+function TimeSlotPicker({
+  availableSlots,
+  selectedTime,
+  onSelect,
+  loading,
+}: {
+  availableSlots: string[]
+  selectedTime: string
+  onSelect: (time: string) => void
+  loading: boolean
+}) {
+  if (loading) {
+    return <p className="text-sm font-body text-darkbrown/40 tracking-wide text-center py-4">Checking availability…</p>
+  }
+  if (availableSlots.length === 0) {
+    return (
+      <div className="text-center py-4 rounded-2xl bg-parchment/50">
+        <p className="text-sm font-body text-darkbrown/50 tracking-wide">No available times on this day.</p>
+        <p className="text-xs font-body text-darkbrown/30 mt-1">Please choose a different date.</p>
+      </div>
+    )
+  }
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+      {availableSlots.map(slot => {
+        const label = ALL_TIME_SLOTS.find(s => s.value === slot)?.label ?? slot
+        return (
+          <button
+            key={slot}
+            onClick={() => onSelect(slot)}
+            className={`py-2 px-1 rounded-xl border-2 text-xs font-body font-bold tracking-wide transition-all ${
+              selectedTime === slot
+                ? 'border-terracotta-500 bg-terracotta-500 text-cream shadow-md'
+                : 'border-sand/50 hover:border-terracotta-300 hover:bg-terracotta-50 text-darkbrown/70'
+            }`}
+          >
+            {label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BookPage() {
   const [services, setServices] = useState<Service[]>([])
+  const [mobileAreas, setMobileAreas] = useState<MobileArea[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [gelUpgrades, setGelUpgrades] = useState<Set<string>>(new Set())
   const [step, setStep] = useState<'services' | 'details' | 'confirmed'>('services')
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', phone: '', date: '', time: '', notes: '' })
+  const [locationType, setLocationType] = useState<'salon' | 'mobile'>('salon')
+  const [mobileArea, setMobileArea] = useState('')
+
+  // Calendar state
+  const [viewing, setViewing] = useState(() => {
+    const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1)
+  })
+  const [unavailableDates, setUnavailableDates] = useState<Set<string>>(new Set())
+  const [availableTimes, setAvailableTimes] = useState<string[]>([])
+  const [loadingTimes, setLoadingTimes] = useState(false)
 
   useEffect(() => { fetch('/api/services').then(r => r.json()).then(setServices) }, [])
+  useEffect(() => {
+    fetch('/api/mobile-charges').then(r => r.json()).then(d => setMobileAreas(d.areas || []))
+  }, [])
+
+  // Fetch unavailable dates for current viewing month
+  useEffect(() => {
+    const month = `${viewing.getFullYear()}-${String(viewing.getMonth() + 1).padStart(2, '0')}`
+    fetch(`/api/appointments/available-dates?month=${month}`)
+      .then(r => r.json())
+      .then(d => setUnavailableDates(new Set(d.unavailable || [])))
+      .catch(() => setUnavailableDates(new Set()))
+  }, [viewing])
+
+  // Fetch available times when date changes
+  useEffect(() => {
+    if (!form.date) { setAvailableTimes([]); return }
+    setLoadingTimes(true)
+    fetch(`/api/appointments/availability?date=${form.date}`)
+      .then(r => r.json())
+      .then(d => { setAvailableTimes(d.available || []); setLoadingTimes(false) })
+      .catch(() => { setAvailableTimes([]); setLoadingTimes(false) })
+  }, [form.date])
+
+  const handleDateSelect = (date: string) => {
+    setForm(f => ({ ...f, date, time: '' }))
+  }
 
   const toggleService = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-        setGelUpgrades(gu => { const g = new Set(gu); g.delete(id); return g })
-      } else { next.add(id) }
+      if (next.has(id)) { next.delete(id); setGelUpgrades(gu => { const g = new Set(gu); g.delete(id); return g }) }
+      else next.add(id)
       return next
     })
   }
@@ -78,7 +241,11 @@ export default function BookPage() {
 
   const selectedServices = services.filter(s => selected.has(s.id))
   const gelCount = selectedServices.filter(s => gelUpgrades.has(s.id)).length
-  const total = selectedServices.reduce((sum, s) => sum + s.price, 0) + gelCount * GEL_UPGRADE_PRICE
+  const serviceTotal = selectedServices.reduce((sum, s) => sum + s.price, 0) + gelCount * GEL_UPGRADE_PRICE
+  const mobileFee = locationType === 'mobile' && mobileArea
+    ? (mobileAreas.find(a => a.id === mobileArea)?.fee ?? 0)
+    : 0
+  const grandTotal = serviceTotal + mobileFee
 
   const grouped = categoryOrder.reduce<Record<string, Service[]>>((acc, cat) => {
     const s = services.filter(sv => sv.category === cat)
@@ -86,20 +253,43 @@ export default function BookPage() {
     return acc
   }, {})
 
-  const formatTime = (val: string) => TIME_SLOTS.find(s => s.value === val)?.label ?? val
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!form.date || !form.time) { alert('Please select a date and time.'); return }
     setSubmitting(true)
+
     const servicesList = selectedServices.map(s => {
       const gel = gelUpgrades.has(s.id) ? ` + Gel Upgrade (+$${GEL_UPGRADE_PRICE})` : ''
       return `${s.name}${gel} — $${s.price}${gelUpgrades.has(s.id) ? ` + $${GEL_UPGRADE_PRICE}` : ''}`
     }).join('\n')
 
+    const locationNote = locationType === 'mobile'
+      ? `\nLocation: Mobile — ${mobileAreas.find(a => a.id === mobileArea)?.label ?? mobileArea} (+$${mobileFee})`
+      : '\nLocation: In Salon'
+
     const emailParams = {
       customer_name: form.name, customer_email: form.email, customer_phone: form.phone,
       preferred_date: form.date, preferred_time: formatTime(form.time),
-      services: servicesList, total: `$${total}`, notes: form.notes || 'None',
+      services: servicesList + locationNote, total: `$${grandTotal}`, notes: form.notes || 'None',
+    }
+
+    // Save appointment
+    const res = await fetch('/api/appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: form.date, time: form.time,
+        customerName: form.name, customerEmail: form.email, customerPhone: form.phone,
+        serviceNames: selectedServices.map(s => s.name).join(', '),
+        total: grandTotal, notes: form.notes,
+        locationType, mobileArea: locationType === 'mobile' ? mobileArea : '', mobileFee,
+      }),
+    })
+
+    if (res.status === 409) {
+      alert('Sorry — that time slot was just taken. Please choose another time.')
+      setSubmitting(false)
+      return
     }
 
     const sid = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID
@@ -116,6 +306,7 @@ export default function BookPage() {
 
   /* ── Confirmed ── */
   if (step === 'confirmed') {
+    const mobileAreaLabel = mobileAreas.find(a => a.id === mobileArea)?.label
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
         <div className="w-20 h-20 mx-auto mb-6 bg-forest-100 border-2 border-forest-400 rounded-full flex items-center justify-center">
@@ -127,7 +318,7 @@ export default function BookPage() {
         <h1 className="font-display text-4xl text-darkbrown mb-3">You&apos;re All Set</h1>
         <div className="w-12 h-1 bg-mustard-400 mx-auto mb-6 rounded-full" />
         <p className="text-darkbrown/60 font-body mb-8 leading-loose tracking-wide text-sm">
-          Thank you, {form.name}! We&apos;ve received your booking request and will be in touch to confirm your appointment.
+          Thank you, {form.name}! We&apos;ve received your booking request and will be in touch to confirm.
         </p>
         <div className="card text-left mb-8">
           <h3 className="font-sub font-bold text-darkbrown mb-4 tracking-wide">Booking Summary</h3>
@@ -145,14 +336,21 @@ export default function BookPage() {
                 )}
               </li>
             ))}
+            {locationType === 'mobile' && mobileFee > 0 && (
+              <li className="flex justify-between text-teal-700">
+                <span>Mobile Service — {mobileAreaLabel}</span>
+                <span>+${mobileFee}</span>
+              </li>
+            )}
           </ul>
           <div className="mt-4 pt-4 border-t border-sand/40 flex justify-between">
             <span className="font-body font-bold text-darkbrown uppercase tracking-widest text-xs pt-1">Total</span>
-            <span className="font-script text-2xl text-terracotta-500">${total}</span>
+            <span className="font-script text-2xl text-terracotta-500">${grandTotal}</span>
           </div>
           {form.date && (
             <p className="mt-3 text-xs text-darkbrown/40 font-body tracking-wider uppercase">
-              Preferred: {form.date}{form.time ? ` at ${formatTime(form.time)}` : ''}
+              {form.date} at {formatTime(form.time)}
+              {locationType === 'mobile' ? ` · Mobile (${mobileAreaLabel})` : ' · In Salon'}
             </p>
           )}
         </div>
@@ -189,7 +387,7 @@ export default function BookPage() {
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
 
-          {/* ── Step 1 ── */}
+          {/* ── Step 1: Services ── */}
           {step === 'services' && (
             <div className="space-y-10">
               {Object.entries(grouped).map(([category, catServices]) => (
@@ -255,50 +453,122 @@ export default function BookPage() {
             </div>
           )}
 
-          {/* ── Step 2 ── */}
+          {/* ── Step 2: Details ── */}
           {step === 'details' && (
-            <form onSubmit={handleSubmit} className="card space-y-5">
-              <div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+
+              {/* Location type */}
+              <div className="card">
+                <p className="font-script text-teal-500 text-xl mb-3">where are we meeting?</p>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {(['salon', 'mobile'] as const).map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => { setLocationType(type); if (type === 'salon') setMobileArea('') }}
+                      className={`py-3 px-4 rounded-2xl border-2 text-sm font-body font-bold tracking-wide transition-all ${
+                        locationType === type
+                          ? 'border-teal-500 bg-teal-50 text-teal-700'
+                          : 'border-sand/40 text-darkbrown/50 hover:border-sand'
+                      }`}
+                    >
+                      {type === 'salon' ? '🏠 In Salon' : '🚗 Mobile Service'}
+                    </button>
+                  ))}
+                </div>
+
+                {locationType === 'mobile' && (
+                  <div>
+                    <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-2">Select Your Area *</label>
+                    <div className="space-y-2">
+                      {mobileAreas.map(area => (
+                        <button
+                          key={area.id}
+                          type="button"
+                          onClick={() => setMobileArea(area.id)}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 text-sm font-body transition-all ${
+                            mobileArea === area.id
+                              ? 'border-terracotta-400 bg-terracotta-50 text-darkbrown'
+                              : 'border-sand/40 text-darkbrown/60 hover:border-sand'
+                          }`}
+                        >
+                          <span className="font-bold">{area.label}</span>
+                          <span className="text-terracotta-500 font-bold">+${area.fee}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Date picker */}
+              <div className="card">
+                <p className="font-script text-teal-500 text-xl mb-1">pick a date</p>
+                <p className="font-body text-xs text-darkbrown/40 tracking-widest uppercase mb-4">
+                  Crossed-out dates are unavailable
+                </p>
+                <BookingCalendar
+                  unavailableDates={unavailableDates}
+                  selectedDate={form.date}
+                  onSelectDate={handleDateSelect}
+                  viewing={viewing}
+                  onPrev={() => setViewing(v => new Date(v.getFullYear(), v.getMonth() - 1, 1))}
+                  onNext={() => setViewing(v => new Date(v.getFullYear(), v.getMonth() + 1, 1))}
+                />
+              </div>
+
+              {/* Time picker — only shows after date selected */}
+              {form.date && (
+                <div className="card">
+                  <p className="font-script text-teal-500 text-xl mb-1">choose a time</p>
+                  <p className="font-body text-xs text-darkbrown/40 tracking-widest uppercase mb-4">
+                    {new Date(form.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </p>
+                  <TimeSlotPicker
+                    availableSlots={availableTimes}
+                    selectedTime={form.time}
+                    onSelect={t => setForm(f => ({ ...f, time: t }))}
+                    loading={loadingTimes}
+                  />
+                </div>
+              )}
+
+              {/* Contact info */}
+              <div className="card space-y-5">
                 <p className="font-script text-teal-500 text-xl mb-0">share your deets</p>
-                
-              </div>
-              <div>
-                <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Full Name *</label>
-                <input type="text" required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className="input-field" placeholder="Your name" />
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Email *</label>
-                  <input type="email" required value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} className="input-field" placeholder="you@email.com" />
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Full Name *</label>
+                  <input type="text" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="input-field" placeholder="Your name" />
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Email *</label>
+                    <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="input-field" placeholder="you@email.com" />
+                  </div>
+                  <div>
+                    <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Phone *</label>
+                    <input type="tel" required value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="input-field" placeholder="(555) 123-4567" />
+                  </div>
                 </div>
                 <div>
-                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Phone *</label>
-                  <input type="tel" required value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} className="input-field" placeholder="(555) 123-4567" />
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Notes / Special Requests</label>
+                  <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="input-field h-28 resize-none" placeholder="Design ideas, or a link to your inspo: ex Pinterest or Instagram!"/>
                 </div>
               </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Preferred Date</label>
-                  <input type="date" value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} className="input-field" />
-                </div>
-                <div>
-                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Preferred Time</label>
-                  <select value={form.time} onChange={e => setForm(f => ({...f, time: e.target.value}))} className="input-field">
-                    <option value="">Select a time…</option>
-                    {TIME_SLOTS.map(slot => <option key={slot.value} value={slot.value}>{slot.label}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Notes / Special Requests</label>
-                <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} className="input-field h-28 resize-none" placeholder="Design ideas, allergies, anything we should know…" />
-              </div>
-              <div className="flex gap-4 pt-2">
+
+              <div className="flex gap-4">
                 <button type="button" onClick={() => setStep('services')} className="btn-secondary flex-1">Back</button>
-                <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-50">
+                <button
+                  type="submit"
+                  disabled={submitting || !form.date || !form.time || (locationType === 'mobile' && !mobileArea)}
+                  className="btn-primary flex-1 disabled:opacity-40"
+                >
                   {submitting ? 'Sending…' : 'Submit Booking'}
                 </button>
               </div>
+              {locationType === 'mobile' && !mobileArea && (
+                <p className="text-xs font-body text-center text-darkbrown/40">Please select your mobile service area above.</p>
+              )}
             </form>
           )}
         </div>
@@ -330,10 +600,21 @@ export default function BookPage() {
                       )}
                     </li>
                   ))}
+                  {locationType === 'mobile' && mobileArea && mobileFee > 0 && (
+                    <li className="text-sm font-body">
+                      <div className="flex items-start justify-between pt-2 border-t border-sand/20">
+                        <div>
+                          <p className="text-teal-700 font-bold">Mobile Service</p>
+                          <p className="text-sand text-xs">{mobileAreas.find(a => a.id === mobileArea)?.label}</p>
+                        </div>
+                        <span className="text-teal-600 font-bold">+${mobileFee}</span>
+                      </div>
+                    </li>
+                  )}
                 </ul>
                 <div className="pt-4 border-t border-sand/40 flex justify-between items-center">
                   <span className="font-body uppercase tracking-widest text-xs text-darkbrown/50">Est. Total</span>
-                  <span className="font-script text-3xl text-terracotta-500">${total}</span>
+                  <span className="font-script text-3xl text-terracotta-500">${grandTotal}</span>
                 </div>
               </>
             )}
