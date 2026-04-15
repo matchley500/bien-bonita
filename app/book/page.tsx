@@ -361,6 +361,18 @@ export default function BookPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 md:py-16">
+
+      {/* ── Mobile sticky Continue bar ── */}
+      {step === 'services' && selectedServices.length > 0 && (
+        <div className="lg:hidden fixed top-16 left-0 right-0 z-40 bg-cream/95 backdrop-blur border-b border-sand/30 shadow-sm px-4 py-2 flex items-center justify-between gap-3">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <span className="font-body text-xs text-darkbrown/50 uppercase tracking-widest shrink-0">{selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''}</span>
+            <span className="font-script text-xl text-terracotta-500 shrink-0">${grandTotal}</span>
+          </div>
+          <button onClick={() => setStep('details')} className="btn-primary text-xs py-2 px-5 shrink-0">Continue →</button>
+        </div>
+      )}
+
       <div className="text-center mb-10">
         <p className="font-script text-teal-500 text-2xl mb-1">let&apos;s get you booked</p>
         <h1 className="font-display text-4xl md:text-6xl text-darkbrown">Build Your Visit</h1>

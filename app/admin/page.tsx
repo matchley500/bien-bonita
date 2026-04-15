@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -14,6 +14,8 @@ interface Appointment {
   serviceNames: string; total: number; notes: string
   locationType?: string; mobileArea?: string; mobileFee?: number
   createdAt: string
+  status?: 'pending' | 'done'
+  finalPrice?: number
 }
 interface MobileArea { id: string; label: string; fee: number }
 interface BlockedData {
@@ -130,7 +132,7 @@ function MiniCalendar({
 
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export default function AdminDashboard() {
-  const [tab, setTab] = useState<'appointments' | 'availability' | 'services' | 'mobile'>('appointments')
+  const [tab, setTab] = useState<'appointments' | 'availability' | 'services' | 'mobile' | 'accounting'>('appointments')
   const [services, setServices] = useState<Service[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [mobileAreas, setMobileAreas] = useState<MobileArea[]>([])
@@ -159,6 +161,13 @@ export default function AdminDashboard() {
   const [mobileEdits, setMobileEdits] = useState<MobileArea[]>([])
   const [savingMobile, setSavingMobile] = useState(false)
   const [mobileSaved, setMobileSaved] = useState(false)
+
+  // All Done modal
+  const [doneModal, setDoneModal] = useState<{ id: string; originalTotal: number } | null>(null)
+  const [donePrice, setDonePrice] = useState('')
+
+  // Service form ref for scroll-to
+  const svcFormRef = useRef<HTMLFormElement>(null)
 
   const router = useRouter()
 
@@ -204,6 +213,7 @@ export default function AdminDashboard() {
   const handleSvcEdit = (s: Service) => {
     setSvcForm({ name: s.name, description: s.description, price: String(s.price), duration: s.duration, category: s.category })
     setEditingId(s.id); setShowSvcForm(true)
+    setTimeout(() => svcFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
   const handleSvcDelete = async (id: string) => {
     if (!confirm('Delete this service?')) return
@@ -224,6 +234,17 @@ export default function AdminDashboard() {
   const handleApptDelete = async (id: string) => {
     if (!confirm('Cancel this appointment? This will free up the time slot.')) return
     await fetch(`/api/admin/appointments/${id}`, { method: 'DELETE' })
+    await refreshAppointments()
+  }
+
+  const handleAllDone = async () => {
+    if (!doneModal) return
+    await fetch(`/api/admin/appointments/${doneModal.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'done', finalPrice: Number(donePrice) || doneModal.originalTotal }),
+    })
+    setDoneModal(null)
     await refreshAppointments()
   }
 
@@ -278,11 +299,15 @@ export default function AdminDashboard() {
     return <div className="min-h-[60vh] flex items-center justify-center"><p className="font-body tracking-widest uppercase text-sm text-darkbrown/40">Loading…</p></div>
   }
 
+  const doneAppointments = appointments.filter(a => a.status === 'done')
+  const accountingTotal = doneAppointments.reduce((sum, a) => sum + (a.finalPrice ?? a.total), 0)
+
   const tabConfig = [
     { key: 'appointments', label: `Appointments${appointments.length ? ` (${appointments.length})` : ''}` },
     { key: 'availability', label: 'Availability' },
     { key: 'services', label: 'Services' },
     { key: 'mobile', label: 'Mobile Charges' },
+    { key: 'accounting', label: `Accounting${doneAppointments.length ? ` (${doneAppointments.length})` : ''}` },
   ] as const
 
   return (
@@ -389,9 +414,10 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {dayAppointments.map(appt => (
-                      <div key={appt.id} className="card flex flex-col sm:flex-row sm:items-start gap-4">
-                        <div className="bg-terracotta-50 border border-terracotta-200 rounded-2xl px-4 py-3 text-center min-w-[90px]">
-                          <p className="font-display text-xl text-terracotta-500 leading-tight">{fmtTime(appt.time)}</p>
+                      <div key={appt.id} className={`card flex flex-col sm:flex-row sm:items-start gap-4 ${appt.status === 'done' ? 'opacity-60 bg-parchment/40' : ''}`}>
+                        <div className={`rounded-2xl px-4 py-3 text-center min-w-[90px] ${appt.status === 'done' ? 'bg-forest-50 border border-forest-200' : 'bg-terracotta-50 border border-terracotta-200'}`}>
+                          <p className={`font-display text-xl leading-tight ${appt.status === 'done' ? 'text-forest-600' : 'text-terracotta-500'}`}>{fmtTime(appt.time)}</p>
+                          {appt.status === 'done' && <p className="text-[9px] font-body font-bold uppercase tracking-widest text-forest-500 mt-0.5">Done</p>}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
@@ -402,7 +428,16 @@ export default function AdminDashboard() {
                                 <p className="text-xs font-body text-mustard-600 mt-0.5">🚗 Mobile — {appt.mobileArea}{appt.mobileFee ? ` (+$${appt.mobileFee})` : ''}</p>
                               )}
                             </div>
-                            {appt.total > 0 && <span className="font-script text-xl text-terracotta-500 shrink-0">${appt.total}</span>}
+                            <div className="text-right shrink-0">
+                              {appt.status === 'done' && appt.finalPrice !== undefined ? (
+                                <div>
+                                  <span className="font-script text-xl text-forest-600">${appt.finalPrice}</span>
+                                  {appt.finalPrice !== appt.total && <p className="text-[10px] font-body text-darkbrown/30 line-through">${appt.total}</p>}
+                                </div>
+                              ) : appt.total > 0 ? (
+                                <span className="font-script text-xl text-terracotta-500">${appt.total}</span>
+                              ) : null}
+                            </div>
                           </div>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs font-body text-darkbrown/50">
                             {appt.customerPhone && <span>📞 {appt.customerPhone}</span>}
@@ -410,12 +445,22 @@ export default function AdminDashboard() {
                           </div>
                           {appt.notes && <p className="mt-2 text-xs font-body text-darkbrown/40 italic">{appt.notes}</p>}
                         </div>
-                        <button
-                          onClick={() => handleApptDelete(appt.id)}
-                          className="shrink-0 text-xs font-body font-bold text-darkbrown/25 hover:text-red-500 uppercase tracking-wider transition-colors px-3 py-1 rounded-lg hover:bg-red-50"
-                        >
-                          Cancel
-                        </button>
+                        <div className="flex sm:flex-col gap-2 shrink-0">
+                          {appt.status !== 'done' && (
+                            <button
+                              onClick={() => { setDoneModal({ id: appt.id, originalTotal: appt.total }); setDonePrice(String(appt.total)) }}
+                              className="text-xs font-body font-bold text-forest-600 hover:text-forest-800 uppercase tracking-wider transition-colors px-3 py-1 rounded-lg hover:bg-forest-50 border border-forest-300"
+                            >
+                              All Done
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleApptDelete(appt.id)}
+                            className="text-xs font-body font-bold text-darkbrown/25 hover:text-red-500 uppercase tracking-wider transition-colors px-3 py-1 rounded-lg hover:bg-red-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     ))}
 
@@ -642,7 +687,7 @@ export default function AdminDashboard() {
             </button>
           </div>
           {showSvcForm && (
-            <form onSubmit={handleSvcSave} className="card mb-8 space-y-4">
+            <form ref={svcFormRef} onSubmit={handleSvcSave} className="card mb-8 space-y-4">
               <h2 className="font-display text-2xl text-darkbrown">{editingId ? 'Edit Service' : 'New Service'}</h2>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
@@ -778,6 +823,149 @@ export default function AdminDashboard() {
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════ ACCOUNTING TAB ════════════════ */}
+      {tab === 'accounting' && (
+        <div>
+          <div className="mb-6">
+            <p className="font-script text-teal-500 text-xl mb-0">by the numbers</p>
+            <h2 className="font-display text-3xl text-darkbrown">Accounting</h2>
+            <p className="font-body text-sm text-darkbrown/40 mt-2 tracking-wide">
+              Completed appointments with confirmed final charges.
+            </p>
+          </div>
+
+          {doneAppointments.length === 0 ? (
+            <div className="card text-center py-16">
+              <p className="font-body text-darkbrown/40 text-sm tracking-wide">No completed appointments yet.</p>
+              <p className="font-body text-darkbrown/30 text-xs mt-2 tracking-wide">Mark appointments as &ldquo;All Done&rdquo; to see them here.</p>
+            </div>
+          ) : (
+            <>
+              {/* Summary bar */}
+              <div className="grid sm:grid-cols-3 gap-4 mb-6">
+                <div className="card text-center">
+                  <p className="font-body text-xs uppercase tracking-widest text-darkbrown/40 mb-1">Completed</p>
+                  <p className="font-display text-3xl text-darkbrown">{doneAppointments.length}</p>
+                </div>
+                <div className="card text-center">
+                  <p className="font-body text-xs uppercase tracking-widest text-darkbrown/40 mb-1">Est. Total</p>
+                  <p className="font-script text-3xl text-darkbrown/40">${doneAppointments.reduce((s, a) => s + a.total, 0)}</p>
+                </div>
+                <div className="card text-center border-forest-200 bg-forest-50/30">
+                  <p className="font-body text-xs uppercase tracking-widest text-forest-600/60 mb-1">Charged Total</p>
+                  <p className="font-script text-3xl text-forest-600">${accountingTotal}</p>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="card p-0 overflow-hidden">
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-darkbrown text-cream">
+                      <tr>{['Date', 'Client', 'Services', 'Est.', 'Charged', 'Tip'].map(h => (
+                        <th key={h} className="text-left px-5 py-4 font-body text-xs uppercase tracking-widest">{h}</th>
+                      ))}</tr>
+                    </thead>
+                    <tbody className="divide-y divide-sand/20">
+                      {[...doneAppointments].sort((a, b) => b.date.localeCompare(a.date)).map(appt => {
+                        const charged = appt.finalPrice ?? appt.total
+                        const tip = charged - appt.total
+                        return (
+                          <tr key={appt.id} className="hover:bg-forest-50/20 transition-colors">
+                            <td className="px-5 py-4 text-sm font-body text-darkbrown/60 whitespace-nowrap">{fmtDate(appt.date)}<br /><span className="text-xs text-darkbrown/40">{fmtTime(appt.time)}</span></td>
+                            <td className="px-5 py-4">
+                              <p className="font-sub font-bold text-darkbrown text-sm">{appt.customerName}</p>
+                              {appt.customerPhone && <p className="text-xs font-body text-darkbrown/40">{appt.customerPhone}</p>}
+                            </td>
+                            <td className="px-5 py-4 text-xs font-body text-teal-600 max-w-[180px]">{appt.serviceNames || '—'}</td>
+                            <td className="px-5 py-4"><span className="font-body text-sm text-darkbrown/40">${appt.total}</span></td>
+                            <td className="px-5 py-4"><span className="font-script text-xl text-forest-600">${charged}</span></td>
+                            <td className="px-5 py-4"><span className={`font-body text-sm font-bold ${tip > 0 ? 'text-mustard-600' : 'text-darkbrown/30'}`}>{tip > 0 ? `+$${tip}` : '—'}</span></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot className="bg-parchment">
+                      <tr>
+                        <td colSpan={4} className="px-5 py-4 font-body text-xs uppercase tracking-widest text-darkbrown/40 text-right">Total Charged</td>
+                        <td className="px-5 py-4"><span className="font-script text-2xl text-forest-600">${accountingTotal}</span></td>
+                        <td className="px-5 py-4">
+                          <span className="font-body text-sm font-bold text-mustard-600">
+                            {(() => { const t = doneAppointments.reduce((s, a) => s + ((a.finalPrice ?? a.total) - a.total), 0); return t > 0 ? `+$${t}` : '—' })()}
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                {/* Mobile list */}
+                <div className="md:hidden divide-y divide-sand/20">
+                  {[...doneAppointments].sort((a, b) => b.date.localeCompare(a.date)).map(appt => {
+                    const charged = appt.finalPrice ?? appt.total
+                    const tip = charged - appt.total
+                    return (
+                      <div key={appt.id} className="p-4">
+                        <div className="flex items-start justify-between mb-1">
+                          <div>
+                            <p className="font-sub font-bold text-darkbrown">{appt.customerName}</p>
+                            <p className="text-xs font-body text-darkbrown/40">{fmtDate(appt.date)} · {fmtTime(appt.time)}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-script text-xl text-forest-600">${charged}</span>
+                            {tip > 0 && <p className="text-xs font-body font-bold text-mustard-600">+${tip} tip</p>}
+                          </div>
+                        </div>
+                        {appt.serviceNames && <p className="text-xs font-body text-teal-600 mt-1">{appt.serviceNames}</p>}
+                      </div>
+                    )
+                  })}
+                  <div className="p-4 bg-parchment flex justify-between items-center">
+                    <span className="font-body text-xs uppercase tracking-widest text-darkbrown/40">Total Charged</span>
+                    <span className="font-script text-2xl text-forest-600">${accountingTotal}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════ ALL DONE MODAL ════════════════ */}
+      {doneModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-darkbrown/40 backdrop-blur-sm">
+          <div className="bg-cream rounded-3xl shadow-2xl w-full max-w-sm p-8 space-y-5">
+            <div>
+              <p className="font-script text-teal-500 text-2xl mb-0">all done!</p>
+              <h2 className="font-display text-2xl text-darkbrown">Confirm Final Charge</h2>
+              <p className="font-body text-sm text-darkbrown/50 mt-1 tracking-wide">
+                Enter the total amount collected. Adjust for tips or any services added during the appointment.
+              </p>
+            </div>
+            <div>
+              <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-2">Final Amount Charged ($)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                autoFocus
+                value={donePrice}
+                onChange={e => setDonePrice(e.target.value)}
+                className="input-field text-2xl font-script text-center"
+              />
+              {doneModal.originalTotal > 0 && (
+                <p className="text-xs font-body text-darkbrown/40 mt-1 text-center">
+                  Original estimate: ${doneModal.originalTotal}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDoneModal(null)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={handleAllDone} className="btn-primary flex-1">Confirm</button>
+            </div>
           </div>
         </div>
       )}

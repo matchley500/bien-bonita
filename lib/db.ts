@@ -21,6 +21,8 @@ export interface Appointment {
   mobileArea: string
   mobileFee: number
   createdAt: string
+  status?: 'pending' | 'done'
+  finalPrice?: number
 }
 
 export interface BlockedData {
