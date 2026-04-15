@@ -1,27 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession } from '@/lib/auth'
-import fs from 'fs'
-import path from 'path'
-
-const dataPath = path.join(process.cwd(), 'data', 'services.json')
-
-function readServices() {
-  const data = fs.readFileSync(dataPath, 'utf-8')
-  return JSON.parse(data)
-}
-
-function writeServices(services: unknown[]) {
-  fs.writeFileSync(dataPath, JSON.stringify(services, null, 2))
-}
+import { getServices, setServices } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
-  const isAdmin = await verifySession()
-  if (!isAdmin) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  if (!(await verifySession())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const services = readServices()
+  const services = await getServices()
 
   const newService = {
     id: String(Date.now()),
@@ -33,7 +18,7 @@ export async function POST(request: NextRequest) {
   }
 
   services.push(newService)
-  writeServices(services)
+  await setServices(services)
 
   return NextResponse.json(newService, { status: 201 })
 }
