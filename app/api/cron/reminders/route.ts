@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments } from '@/lib/db'
-import { transporter, reminderEmailHtml } from '@/lib/mailer'
+import { getTransporter, reminderEmailHtml } from '@/lib/mailer'
 
 // Formats "08:30" → "8:30 AM"
 function fmtTime(val: string) {
@@ -14,7 +14,6 @@ function fmtTime(val: string) {
 // Returns "YYYY-MM-DD" for tomorrow in Arizona (MST = UTC-7, no DST)
 function tomorrowAZ(): string {
   const now = new Date()
-  // Arizona is UTC-7 year-round (no daylight saving time)
   const azOffset = -7 * 60
   const localOffset = now.getTimezoneOffset()
   const azNow = new Date(now.getTime() + (localOffset - Math.abs(azOffset)) * 60 * 1000)
@@ -24,7 +23,6 @@ function tomorrowAZ(): string {
 }
 
 export async function GET(request: NextRequest) {
-  // Verify this request came from Vercel Cron (or your own test call)
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -32,8 +30,6 @@ export async function GET(request: NextRequest) {
 
   const tomorrow = tomorrowAZ()
   const appointments = await getAppointments()
-
-  // Only active (not yet done/cancelled) appointments for tomorrow with an email
   const toRemind = appointments.filter(
     a => a.date === tomorrow && a.customerEmail && a.status !== 'done'
   )
@@ -42,6 +38,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ sent: 0, date: tomorrow, message: 'No appointments to remind.' })
   }
 
+  const transporter = getTransporter()
   const results: { name: string; email: string; ok: boolean; error?: string }[] = []
 
   for (const appt of toRemind) {
