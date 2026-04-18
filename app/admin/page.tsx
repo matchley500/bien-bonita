@@ -166,6 +166,9 @@ export default function AdminDashboard() {
   const [doneModal, setDoneModal] = useState<{ id: string; originalTotal: number } | null>(null)
   const [donePrice, setDonePrice] = useState('')
 
+  // Test reminder email
+  const [testEmailState, setTestEmailState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
   // Service form ref for scroll-to
   const svcFormRef = useRef<HTMLFormElement>(null)
 
@@ -310,6 +313,17 @@ export default function AdminDashboard() {
     { key: 'accounting', label: `Accounting${doneAppointments.length ? ` (${doneAppointments.length})` : ''}` },
   ] as const
 
+  const handleTestEmail = async () => {
+    setTestEmailState('sending')
+    try {
+      const res = await fetch('/api/admin/test-reminder', { method: 'POST' })
+      setTestEmailState(res.ok ? 'sent' : 'error')
+    } catch {
+      setTestEmailState('error')
+    }
+    setTimeout(() => setTestEmailState('idle'), 4000)
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       {/* Header */}
@@ -319,7 +333,17 @@ export default function AdminDashboard() {
           <h1 className="font-display text-4xl text-darkbrown">Dashboard</h1>
           <div className="h-0.5 w-10 bg-mustard-400 mt-2 rounded-full" />
         </div>
-        <button onClick={handleLogout} className="btn-secondary text-xs">Logout</button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleTestEmail}
+            disabled={testEmailState === 'sending'}
+            className="text-xs font-body font-bold uppercase tracking-widest text-darkbrown/40 hover:text-teal-600 transition-colors disabled:opacity-40"
+            title="Sends a sample reminder email to the admin Gmail to preview how it looks"
+          >
+            {testEmailState === 'sending' ? 'Sending…' : testEmailState === 'sent' ? '✓ Email Sent!' : testEmailState === 'error' ? '✗ Failed' : '✉ Test Reminder Email'}
+          </button>
+          <button onClick={handleLogout} className="btn-secondary text-xs">Logout</button>
+        </div>
       </div>
 
       {/* Tabs */}
