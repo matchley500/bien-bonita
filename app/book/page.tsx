@@ -258,21 +258,6 @@ export default function BookPage() {
     if (!form.date || !form.time) { alert('Please select a date and time.'); return }
     setSubmitting(true)
 
-    const servicesList = selectedServices.map(s => {
-      const gel = gelUpgrades.has(s.id) ? ` + Gel Upgrade (+$${GEL_UPGRADE_PRICE})` : ''
-      return `${s.name}${gel} — $${s.price}${gelUpgrades.has(s.id) ? ` + $${GEL_UPGRADE_PRICE}` : ''}`
-    }).join('\n')
-
-    const locationNote = locationType === 'mobile'
-      ? `\nLocation: Mobile — ${mobileAreas.find(a => a.id === mobileArea)?.label ?? mobileArea} (+$${mobileFee})`
-      : '\nLocation: In Salon'
-
-    const emailParams = {
-      customer_name: form.name, customer_email: form.email, customer_phone: form.phone,
-      preferred_date: form.date, preferred_time: formatTime(form.time),
-      services: servicesList + locationNote, total: `$${grandTotal}`, notes: form.notes || 'None',
-    }
-
     // Save appointment
     const res = await fetch('/api/appointments', {
       method: 'POST',
@@ -291,14 +276,6 @@ export default function BookPage() {
       setSubmitting(false)
       return
     }
-
-    const sid = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID
-    const tid = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID
-    const key = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
-    if (sid && tid && key) {
-      try { const ejs = await import('@emailjs/browser'); await ejs.send(sid, tid, emailParams, key) }
-      catch (err) { console.error('EmailJS error:', err) }
-    } else { console.log('Booking (EmailJS not configured):', emailParams) }
 
     setStep('confirmed')
     setSubmitting(false)

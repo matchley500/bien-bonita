@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, setAppointments } from '@/lib/db'
+import { getTransporter, confirmationEmailHtml } from '@/lib/mailer'
+
+function fmtTime(val: string) {
+  const [hStr, mStr] = val.split(':')
+  const h = parseInt(hStr)
+  const period = h < 12 ? 'AM' : 'PM'
+  const dh = h > 12 ? h - 12 : h === 0 ? 12 : h
+  return `${dh}:${mStr} ${period}`
+}
 
 // Public — customers submit booking requests
 export async function POST(request: NextRequest) {
@@ -36,6 +45,28 @@ export async function POST(request: NextRequest) {
 
   appointments.push(newAppointment)
   await setAppointments(appointments)
+
+  // Send confirmation email to customer (best-effort — don't fail the booking if email errors)
+  if (customerEmail && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    try {
+      await getTransporter().sendMail({
+        from: `"Bien Bonita Nails & Spa" <${process.env.GMAIL_USER}>`,
+        to: customerEmail,
+        subject: `You're booked! ✨ Bien Bonita Appointment Confirmed`,
+        html: confirmationEmailHtml({
+          customerName,
+          date,
+          time: fmtTime(time),
+          serviceNames: serviceNames ?? '',
+          locationType: body.locationType || 'salon',
+          mobileArea: body.mobileArea || '',
+          total: Number(total) || 0,
+        }),
+      })
+    } catch (err) {
+      console.error('Confirmation email failed:', err)
+    }
+  }
 
   return NextResponse.json(newAppointment, { status: 201 })
 }
