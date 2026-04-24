@@ -202,6 +202,9 @@ export default function BookPage() {
     fetch('/api/mobile-charges').then(r => r.json()).then(d => setMobileAreas(d.areas || []))
   }, [])
 
+  // Scroll to top on every step change — critical on mobile
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [step])
+
   // Fetch unavailable dates for current viewing month
   useEffect(() => {
     const month = `${viewing.getFullYear()}-${String(viewing.getMonth() + 1).padStart(2, '0')}`
