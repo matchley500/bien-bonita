@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, getBlocked } from '@/lib/db'
-
-function buildAllSlots(): string[] {
-  const slots: string[] = []
-  let h = 8, m = 30
-  while (h < 16 || (h === 16 && m === 0)) {
-    slots.push(`${String(h).padStart(2, '0')}:${m === 0 ? '00' : '30'}`)
-    m += 30; if (m === 60) { m = 0; h++ }
-  }
-  return slots
-}
+import { buildAllSlots, expandWithBuffer, filterPastSlots } from '@/lib/scheduling'
 
 // Public — returns YYYY-MM-DD strings in a month that have no bookable slots
 export async function GET(request: NextRequest) {
@@ -36,12 +27,22 @@ export async function GET(request: NextRequest) {
       continue
     }
 
-    // Fully booked (all slots taken or individually blocked)
-    const taken = new Set([
-      ...appointments.filter(a => a.date === date).map(a => a.time),
-      ...blocked.slots.filter(s => s.date === date).map(s => s.time),
-    ])
-    if (taken.size >= allSlots.length) unavailable.push(date)
+    // Build taken set with 2.5-hr buffer per appointment
+    const taken = new Set<string>()
+    for (const appt of appointments.filter(a => a.date === date)) {
+      for (const s of expandWithBuffer(appt.time, allSlots)) taken.add(s)
+    }
+    for (const slot of blocked.slots.filter(s => s.date === date)) {
+      taken.add(slot.time)
+    }
+
+    // For today: remove past slots before checking if any remain
+    const remaining = filterPastSlots(
+      allSlots.filter(s => !taken.has(s)),
+      date
+    )
+
+    if (remaining.length === 0) unavailable.push(date)
   }
 
   return NextResponse.json({ unavailable })

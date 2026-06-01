@@ -37,7 +37,7 @@ const EMPTY_APPT = { date: '', time: '', customerName: '', customerEmail: '', cu
 function buildTimeSlots() {
   const slots: { value: string; label: string }[] = []
   let h = 8, m = 30
-  while (h < 16 || (h === 16 && m === 0)) {
+  while (h < 16) { // last slot 15:30 (3:30 PM)
     const period = h < 12 ? 'AM' : 'PM'
     const dh = h > 12 ? h - 12 : h === 0 ? 12 : h
     const dm = m === 0 ? '00' : '30'

@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, getBlocked } from '@/lib/db'
-
-function buildAllSlots(): string[] {
-  const slots: string[] = []
-  let h = 8, m = 30
-  while (h < 16 || (h === 16 && m === 0)) {
-    slots.push(`${String(h).padStart(2, '0')}:${m === 0 ? '00' : '30'}`)
-    m += 30; if (m === 60) { m = 0; h++ }
-  }
-  return slots
-}
+import { buildAllSlots, expandWithBuffer, filterPastSlots } from '@/lib/scheduling'
 
 function dayOfWeek(dateStr: string): number {
   const [y, mo, d] = dateStr.split('-').map(Number)
@@ -28,11 +19,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ available: [] })
   }
 
-  const taken = new Set([
-    ...appointments.filter(a => a.date === date).map(a => a.time),
-    ...blocked.slots.filter(s => s.date === date).map(s => s.time),
-  ])
+  const allSlots = buildAllSlots()
 
-  const available = buildAllSlots().filter(s => !taken.has(s))
+  // Build taken set — each appointment blocks itself + next 4 slots (2.5 hr buffer)
+  const taken = new Set<string>()
+  for (const appt of appointments.filter(a => a.date === date)) {
+    for (const s of expandWithBuffer(appt.time, allSlots)) taken.add(s)
+  }
+  for (const slot of blocked.slots.filter(s => s.date === date)) {
+    taken.add(slot.time)
+  }
+
+  // Filter unavailable slots, then remove past slots if this is today
+  const available = filterPastSlots(
+    allSlots.filter(s => !taken.has(s)),
+    date
+  )
+
   return NextResponse.json({ available })
 }
