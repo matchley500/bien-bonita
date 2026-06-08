@@ -23,6 +23,12 @@ export interface Appointment {
   createdAt: string
   status?: 'pending' | 'done'
   finalPrice?: number
+  rescheduleRequest?: {
+    requestedDate: string
+    requestedTime: string
+    note: string
+    createdAt: string
+  }
 }
 
 export interface BlockedData {

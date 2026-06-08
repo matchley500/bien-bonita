@@ -15,7 +15,10 @@ export async function PUT(
 
   if (index === -1) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  appointments[index] = { ...appointments[index], ...body }
+  const merged = { ...appointments[index], ...body }
+  // If rescheduleRequest was explicitly set to null, remove the key entirely
+  if (body.rescheduleRequest === null) delete merged.rescheduleRequest
+  appointments[index] = merged
   await setAppointments(appointments)
 
   return NextResponse.json(appointments[index])

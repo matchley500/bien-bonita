@@ -90,6 +90,7 @@ function appointmentCard({
 
 export function confirmationEmailHtml(opts: {
   customerName: string
+  customerEmail?: string
   date: string
   time: string
   serviceNames: string
@@ -107,10 +108,16 @@ export function confirmationEmailHtml(opts: {
 
     ${appointmentCard(opts)}
 
-    <p style="margin:0 0 8px;font-size:14px;color:#8B7355;line-height:1.6;">
-      Need to reschedule or have questions? Reply to this email or reach us at
+    <p style="margin:0 0 16px;font-size:14px;color:#8B7355;line-height:1.6;">
+      Have questions? Reply to this email or reach us at
       <a href="mailto:bienbonitanailandspa@gmail.com" style="color:#C4622D;text-decoration:none;">bienbonitanailandspa@gmail.com</a>.
     </p>
+    <div style="text-align:center;margin-bottom:8px;">
+      <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bien-bonita.vercel.app'}/reschedule?email=${encodeURIComponent(opts.customerEmail ?? '')}&date=${opts.date}"
+         style="display:inline-block;padding:10px 24px;background:#F5F0E8;border-radius:50px;font-family:sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8B7355;text-decoration:none;">
+        Request Reschedule
+      </a>
+    </div>
     <p style="margin:0;font-size:14px;color:#8B7355;line-height:1.6;">
       We appreciate you choosing Bien Bonita. See you soon!
     </p>
@@ -143,6 +150,90 @@ export function reminderEmailHtml(opts: {
     </p>
     <p style="margin:0;font-size:14px;color:#8B7355;line-height:1.6;">
       We appreciate your business and look forward to seeing you!
+    </p>
+  `)
+}
+
+// ─── Reschedule request received (to customer) ────────────────────────────────
+
+export function rescheduleReceivedEmailHtml(opts: {
+  customerName: string
+  currentDate: string
+  currentTime: string
+  requestedDate: string
+  requestedTime: string
+  note?: string
+}) {
+  const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
+  return emailShell(`
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">request received!</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Reschedule Request</h2>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
+      Hi ${opts.customerName}! We&rsquo;ve received your reschedule request and will be in touch shortly to confirm your new time.
+    </p>
+
+    <div style="background:#F5F0E8;border-radius:16px;padding:20px 24px;margin-bottom:16px;">
+      <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Current Appointment</p>
+      <p style="margin:0;font-size:15px;color:#3D2B1F;">${fmt(opts.currentDate)} at ${opts.currentTime}</p>
+    </div>
+
+    <div style="background:#FFF8F0;border:1px solid #E8C4A0;border-radius:16px;padding:20px 24px;margin-bottom:24px;">
+      <p style="margin:0 0 4px;font-size:11px;color:#C4622D;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Requested New Time</p>
+      <p style="margin:0 0 4px;font-size:15px;color:#3D2B1F;font-weight:600;">${fmt(opts.requestedDate)} at ${opts.requestedTime}</p>
+      ${opts.note ? `<p style="margin:8px 0 0;font-size:13px;color:#8B7355;font-style:italic;">&ldquo;${opts.note}&rdquo;</p>` : ''}
+    </div>
+
+    <p style="margin:0;font-size:14px;color:#8B7355;line-height:1.6;">
+      Questions? Reach us at <a href="mailto:bienbonitanailandspa@gmail.com" style="color:#C4622D;text-decoration:none;">bienbonitanailandspa@gmail.com</a>.
+    </p>
+  `)
+}
+
+// ─── Reschedule request notification (to admin) ───────────────────────────────
+
+export function rescheduleAdminEmailHtml(opts: {
+  customerName: string
+  customerEmail: string
+  customerPhone?: string
+  currentDate: string
+  currentTime: string
+  requestedDate: string
+  requestedTime: string
+  note?: string
+}) {
+  const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
+  return emailShell(`
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">reschedule request</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Action Needed</h2>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
+      <strong>${opts.customerName}</strong> has requested to reschedule their appointment.
+    </p>
+
+    <div style="background:#F5F0E8;border-radius:16px;padding:20px 24px;margin-bottom:16px;">
+      <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Current Appointment</p>
+      <p style="margin:0;font-size:15px;color:#3D2B1F;">${fmt(opts.currentDate)} at ${opts.currentTime}</p>
+    </div>
+
+    <div style="background:#FFF8F0;border:1px solid #E8C4A0;border-radius:16px;padding:20px 24px;margin-bottom:24px;">
+      <p style="margin:0 0 4px;font-size:11px;color:#C4622D;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Requested New Time</p>
+      <p style="margin:0 0 4px;font-size:15px;color:#3D2B1F;font-weight:600;">${fmt(opts.requestedDate)} at ${opts.requestedTime}</p>
+      ${opts.note ? `<p style="margin:8px 0 0;font-size:13px;color:#8B7355;font-style:italic;">&ldquo;${opts.note}&rdquo;</p>` : ''}
+    </div>
+
+    <div style="background:#F5F0E8;border-radius:16px;padding:16px 24px;margin-bottom:16px;">
+      <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Customer</p>
+      <p style="margin:0 0 2px;font-size:14px;color:#3D2B1F;">${opts.customerEmail}</p>
+      ${opts.customerPhone ? `<p style="margin:0;font-size:14px;color:#3D2B1F;">${opts.customerPhone}</p>` : ''}
+    </div>
+
+    <p style="margin:0;font-size:14px;color:#8B7355;line-height:1.6;">
+      Log in to the admin dashboard to apply the reschedule.
     </p>
   `)
 }

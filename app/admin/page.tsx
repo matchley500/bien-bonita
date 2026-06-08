@@ -8,6 +8,12 @@ interface Service {
   id: string; name: string; description: string
   price: number; duration: string; category: string
 }
+interface RescheduleRequest {
+  requestedDate: string
+  requestedTime: string
+  note: string
+  createdAt: string
+}
 interface Appointment {
   id: string; date: string; time: string
   customerName: string; customerEmail: string; customerPhone: string
@@ -16,6 +22,7 @@ interface Appointment {
   createdAt: string
   status?: 'pending' | 'done'
   finalPrice?: number
+  rescheduleRequest?: RescheduleRequest
 }
 interface MobileArea { id: string; label: string; fee: number }
 interface BlockedData {
@@ -33,6 +40,7 @@ const CATEGORIES = [
 ]
 const EMPTY_SVC = { name: '', description: '', price: '', duration: '', category: 'manicure' }
 const EMPTY_APPT = { date: '', time: '', customerName: '', customerEmail: '', customerPhone: '', serviceNames: '', total: '', notes: '' }
+type EditForm = { date: string; time: string; customerName: string; customerEmail: string; customerPhone: string; serviceNames: string; total: string; notes: string }
 
 function buildTimeSlots() {
   const slots: { value: string; label: string }[] = []
@@ -166,6 +174,11 @@ export default function AdminDashboard() {
   const [doneModal, setDoneModal] = useState<{ id: string; originalTotal: number } | null>(null)
   const [donePrice, setDonePrice] = useState('')
 
+  // Edit appointment modal
+  const [editModal, setEditModal] = useState<Appointment | null>(null)
+  const [editForm, setEditForm] = useState<EditForm>(EMPTY_APPT)
+  const [savingEdit, setSavingEdit] = useState(false)
+
   // Test reminder email
   const [testEmailState, setTestEmailState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
@@ -248,6 +261,54 @@ export default function AdminDashboard() {
       body: JSON.stringify({ status: 'done', finalPrice: Number(donePrice) || doneModal.originalTotal }),
     })
     setDoneModal(null)
+    await refreshAppointments()
+  }
+
+  // ── Edit appointment ──
+  const handleApptEditOpen = (appt: Appointment) => {
+    setEditModal(appt)
+    setEditForm({
+      date: appt.date,
+      time: appt.time,
+      customerName: appt.customerName,
+      customerEmail: appt.customerEmail,
+      customerPhone: appt.customerPhone,
+      serviceNames: appt.serviceNames,
+      total: String(appt.total),
+      notes: appt.notes,
+    })
+  }
+  const handleApptEditSave = async () => {
+    if (!editModal) return
+    setSavingEdit(true)
+    await fetch(`/api/admin/appointments/${editModal.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: editForm.date,
+        time: editForm.time,
+        customerName: editForm.customerName,
+        customerEmail: editForm.customerEmail,
+        customerPhone: editForm.customerPhone,
+        serviceNames: editForm.serviceNames,
+        total: Number(editForm.total) || 0,
+        notes: editForm.notes,
+        rescheduleRequest: null, // clear any pending request
+      }),
+    })
+    setEditModal(null)
+    setSavingEdit(false)
+    await refreshAppointments()
+  }
+  const applyReschedule = (req: RescheduleRequest) => {
+    setEditForm(f => ({ ...f, date: req.requestedDate, time: req.requestedTime }))
+  }
+  const dismissReschedule = async (apptId: string) => {
+    await fetch(`/api/admin/appointments/${apptId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rescheduleRequest: null }),
+    })
     await refreshAppointments()
   }
 
@@ -438,52 +499,92 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {dayAppointments.map(appt => (
-                      <div key={appt.id} className={`card flex flex-col sm:flex-row sm:items-start gap-4 ${appt.status === 'done' ? 'opacity-60 bg-parchment/40' : ''}`}>
-                        <div className={`rounded-2xl px-4 py-3 text-center min-w-[90px] ${appt.status === 'done' ? 'bg-forest-50 border border-forest-200' : 'bg-terracotta-50 border border-terracotta-200'}`}>
-                          <p className={`font-display text-xl leading-tight ${appt.status === 'done' ? 'text-forest-600' : 'text-terracotta-500'}`}>{fmtTime(appt.time)}</p>
-                          {appt.status === 'done' && <p className="text-[9px] font-body font-bold uppercase tracking-widest text-forest-500 mt-0.5">Done</p>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="font-sub font-bold text-darkbrown text-base">{appt.customerName}</p>
-                              {appt.serviceNames && <p className="text-xs font-body text-teal-600 mt-0.5">{appt.serviceNames}</p>}
-                              {appt.locationType === 'mobile' && appt.mobileArea && (
-                                <p className="text-xs font-body text-mustard-600 mt-0.5">🚗 Mobile — {appt.mobileArea}{appt.mobileFee ? ` (+$${appt.mobileFee})` : ''}</p>
-                              )}
+                      <div key={appt.id} className={`card flex flex-col gap-3 ${appt.status === 'done' ? 'opacity-60 bg-parchment/40' : ''}`}>
+                        {/* Reschedule request banner */}
+                        {appt.rescheduleRequest && (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-mustard-50 border border-mustard-300 rounded-2xl px-4 py-3">
+                            <div className="flex items-start gap-2 min-w-0">
+                              <span className="text-mustard-500 text-base mt-0.5">🔄</span>
+                              <div className="min-w-0">
+                                <p className="font-body text-xs font-bold uppercase tracking-widest text-mustard-700">Reschedule Request</p>
+                                <p className="font-body text-sm text-darkbrown mt-0.5">
+                                  {fmtDate(appt.rescheduleRequest.requestedDate)} at {fmtTime(appt.rescheduleRequest.requestedTime)}
+                                </p>
+                                {appt.rescheduleRequest.note && (
+                                  <p className="text-xs font-body text-darkbrown/50 italic mt-0.5">&ldquo;{appt.rescheduleRequest.note}&rdquo;</p>
+                                )}
+                              </div>
                             </div>
-                            <div className="text-right shrink-0">
-                              {appt.status === 'done' && appt.finalPrice !== undefined ? (
-                                <div>
-                                  <span className="font-script text-xl text-forest-600">${appt.finalPrice}</span>
-                                  {appt.finalPrice !== appt.total && <p className="text-[10px] font-body text-darkbrown/30 line-through">${appt.total}</p>}
-                                </div>
-                              ) : appt.total > 0 ? (
-                                <span className="font-script text-xl text-terracotta-500">${appt.total}</span>
-                              ) : null}
+                            <div className="flex gap-2 shrink-0">
+                              <button
+                                onClick={() => { handleApptEditOpen(appt); setTimeout(() => applyReschedule(appt.rescheduleRequest!), 0) }}
+                                className="text-xs font-body font-bold uppercase tracking-wider px-3 py-1.5 rounded-xl bg-mustard-400 text-darkbrown hover:bg-mustard-500 transition-colors"
+                              >
+                                Apply
+                              </button>
+                              <button
+                                onClick={() => dismissReschedule(appt.id)}
+                                className="text-xs font-body font-bold uppercase tracking-wider px-3 py-1.5 rounded-xl text-darkbrown/40 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              >
+                                Dismiss
+                              </button>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs font-body text-darkbrown/50">
-                            {appt.customerPhone && <span>📞 {appt.customerPhone}</span>}
-                            {appt.customerEmail && <span>✉ {appt.customerEmail}</span>}
+                        )}
+
+                        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                          <div className={`rounded-2xl px-4 py-3 text-center min-w-[90px] ${appt.status === 'done' ? 'bg-forest-50 border border-forest-200' : 'bg-terracotta-50 border border-terracotta-200'}`}>
+                            <p className={`font-display text-xl leading-tight ${appt.status === 'done' ? 'text-forest-600' : 'text-terracotta-500'}`}>{fmtTime(appt.time)}</p>
+                            {appt.status === 'done' && <p className="text-[9px] font-body font-bold uppercase tracking-widest text-forest-500 mt-0.5">Done</p>}
                           </div>
-                          {appt.notes && <p className="mt-2 text-xs font-body text-darkbrown/40 italic">{appt.notes}</p>}
-                        </div>
-                        <div className="flex sm:flex-col gap-2 shrink-0">
-                          {appt.status !== 'done' && (
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="font-sub font-bold text-darkbrown text-base">{appt.customerName}</p>
+                                {appt.serviceNames && <p className="text-xs font-body text-teal-600 mt-0.5">{appt.serviceNames}</p>}
+                                {appt.locationType === 'mobile' && appt.mobileArea && (
+                                  <p className="text-xs font-body text-mustard-600 mt-0.5">🚗 Mobile — {appt.mobileArea}{appt.mobileFee ? ` (+$${appt.mobileFee})` : ''}</p>
+                                )}
+                              </div>
+                              <div className="text-right shrink-0">
+                                {appt.status === 'done' && appt.finalPrice !== undefined ? (
+                                  <div>
+                                    <span className="font-script text-xl text-forest-600">${appt.finalPrice}</span>
+                                    {appt.finalPrice !== appt.total && <p className="text-[10px] font-body text-darkbrown/30 line-through">${appt.total}</p>}
+                                  </div>
+                                ) : appt.total > 0 ? (
+                                  <span className="font-script text-xl text-terracotta-500">${appt.total}</span>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs font-body text-darkbrown/50">
+                              {appt.customerPhone && <span>📞 {appt.customerPhone}</span>}
+                              {appt.customerEmail && <span>✉ {appt.customerEmail}</span>}
+                            </div>
+                            {appt.notes && <p className="mt-2 text-xs font-body text-darkbrown/40 italic">{appt.notes}</p>}
+                          </div>
+                          <div className="flex sm:flex-col gap-2 shrink-0">
+                            {appt.status !== 'done' && (
+                              <button
+                                onClick={() => { setDoneModal({ id: appt.id, originalTotal: appt.total }); setDonePrice(String(appt.total)) }}
+                                className="text-xs font-body font-bold text-forest-600 hover:text-forest-800 uppercase tracking-wider transition-colors px-3 py-1 rounded-lg hover:bg-forest-50 border border-forest-300"
+                              >
+                                All Done
+                              </button>
+                            )}
                             <button
-                              onClick={() => { setDoneModal({ id: appt.id, originalTotal: appt.total }); setDonePrice(String(appt.total)) }}
-                              className="text-xs font-body font-bold text-forest-600 hover:text-forest-800 uppercase tracking-wider transition-colors px-3 py-1 rounded-lg hover:bg-forest-50 border border-forest-300"
+                              onClick={() => handleApptEditOpen(appt)}
+                              className="text-xs font-body font-bold text-teal-600 hover:text-teal-800 uppercase tracking-wider transition-colors px-3 py-1 rounded-lg hover:bg-teal-50 border border-teal-300"
                             >
-                              All Done
+                              Edit
                             </button>
-                          )}
-                          <button
-                            onClick={() => handleApptDelete(appt.id)}
-                            className="text-xs font-body font-bold text-darkbrown/25 hover:text-red-500 uppercase tracking-wider transition-colors px-3 py-1 rounded-lg hover:bg-red-50"
-                          >
-                            Cancel
-                          </button>
+                            <button
+                              onClick={() => handleApptDelete(appt.id)}
+                              className="text-xs font-body font-bold text-darkbrown/25 hover:text-red-500 uppercase tracking-wider transition-colors px-3 py-1 rounded-lg hover:bg-red-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -989,6 +1090,143 @@ export default function AdminDashboard() {
             <div className="flex gap-3">
               <button onClick={() => setDoneModal(null)} className="btn-secondary flex-1">Cancel</button>
               <button onClick={handleAllDone} className="btn-primary flex-1">Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════ EDIT APPOINTMENT MODAL ════════════════ */}
+      {editModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-darkbrown/40 backdrop-blur-sm">
+          <div className="bg-cream rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-8 space-y-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-script text-teal-500 text-2xl mb-0">editing</p>
+                  <h2 className="font-display text-2xl text-darkbrown">{editModal.customerName}</h2>
+                </div>
+                <button onClick={() => setEditModal(null)} className="text-darkbrown/30 hover:text-darkbrown text-2xl leading-none mt-1">✕</button>
+              </div>
+
+              {/* Reschedule request notice inside edit modal */}
+              {editModal.rescheduleRequest && (
+                <div className="bg-mustard-50 border border-mustard-300 rounded-2xl p-4 space-y-2">
+                  <p className="font-body text-xs font-bold uppercase tracking-widest text-mustard-700">🔄 Pending Reschedule Request</p>
+                  <p className="font-body text-sm text-darkbrown">
+                    Customer requested: <strong>{fmtDate(editModal.rescheduleRequest.requestedDate)}</strong> at <strong>{fmtTime(editModal.rescheduleRequest.requestedTime)}</strong>
+                  </p>
+                  {editModal.rescheduleRequest.note && (
+                    <p className="text-xs font-body text-darkbrown/50 italic">&ldquo;{editModal.rescheduleRequest.note}&rdquo;</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => applyReschedule(editModal.rescheduleRequest!)}
+                    className="text-xs font-body font-bold uppercase tracking-wider px-4 py-2 rounded-xl bg-mustard-400 text-darkbrown hover:bg-mustard-500 transition-colors"
+                  >
+                    Apply to Form
+                  </button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Date *</label>
+                  <input
+                    type="date" required
+                    value={editForm.date}
+                    onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Time *</label>
+                  <select
+                    required
+                    value={editForm.time}
+                    onChange={e => setEditForm(f => ({ ...f, time: e.target.value }))}
+                    className="input-field"
+                  >
+                    <option value="">Select…</option>
+                    {TIME_SLOTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Client Name *</label>
+                <input
+                  type="text" required
+                  value={editForm.customerName}
+                  onChange={e => setEditForm(f => ({ ...f, customerName: e.target.value }))}
+                  className="input-field"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editForm.customerEmail}
+                    onChange={e => setEditForm(f => ({ ...f, customerEmail: e.target.value }))}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={editForm.customerPhone}
+                    onChange={e => setEditForm(f => ({ ...f, customerPhone: e.target.value }))}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Services</label>
+                <input
+                  type="text"
+                  value={editForm.serviceNames}
+                  onChange={e => setEditForm(f => ({ ...f, serviceNames: e.target.value }))}
+                  className="input-field"
+                  placeholder="e.g. Spa Manicure, Gel Polish"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Total ($)</label>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={editForm.total}
+                    onChange={e => setEditForm(f => ({ ...f, total: e.target.value }))}
+                    className="input-field"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Notes</label>
+                  <input
+                    type="text"
+                    value={editForm.notes}
+                    onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                    className="input-field"
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setEditModal(null)} className="btn-secondary flex-1">Cancel</button>
+                <button
+                  onClick={handleApptEditSave}
+                  disabled={savingEdit || !editForm.date || !editForm.time || !editForm.customerName}
+                  className="btn-primary flex-1 disabled:opacity-50"
+                >
+                  {savingEdit ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

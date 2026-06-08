@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
         subject: `You're booked! ✨ Bien Bonita Appointment Confirmed`,
         html: confirmationEmailHtml({
           customerName,
+          customerEmail,
           date,
           time: fmtTime(time),
           serviceNames: serviceNames ?? '',
