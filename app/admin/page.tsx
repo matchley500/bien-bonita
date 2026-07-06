@@ -48,7 +48,15 @@ const TIME_SLOTS = [
   { value: '12:00', label: '12:00 PM' },
   { value: '14:30', label: '2:30 PM' },
 ]
-function fmtTime(val: string) { return TIME_SLOTS.find(s => s.value === val)?.label ?? val }
+function fmtTime(val: string) {
+  const found = TIME_SLOTS.find(s => s.value === val)
+  if (found) return found.label
+  const [h, m] = val.split(':').map(Number)
+  if (isNaN(h) || isNaN(m)) return val
+  const period = h < 12 ? 'AM' : 'PM'
+  const dh = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${dh}:${String(m).padStart(2, '0')} ${period}`
+}
 function fmtDate(d: string) {
   if (!d) return ''
   const [y, mo, day] = d.split('-').map(Number)
