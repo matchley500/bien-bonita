@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Great_Vibes, Playfair_Display, Josefin_Sans } from 
 import './globals.css'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import BookingClosedBubble from '@/components/BookingClosedBubble'
 
 const alfa = Cormorant_Garamond({
   subsets: ['latin'], weight: ['300', '400', '500', '600', '700'],
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
+        <BookingClosedBubble />
       </body>
     </html>
   )

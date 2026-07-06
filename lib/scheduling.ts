@@ -1,24 +1,36 @@
-// ─── Slot generation ──────────────────────────────────────────────────────────
+// ─── Booking constraints ───────────────────────────────────────────────────────
 
-// All bookable slots: 8:30 AM – 3:30 PM in 30-min increments
+// Only bookable Tuesday (2), Wednesday (3), Thursday (4)
+export const BOOKABLE_DAYS = new Set([2, 3, 4])
+export const MAX_CLIENTS_PER_DAY = 3
+
+// Fixed appointment slots: 9:30 AM, 12:00 PM, 2:30 PM
+const FIXED_SLOTS = ['09:30', '12:00', '14:30']
+
 export function buildAllSlots(): string[] {
-  const slots: string[] = []
-  let h = 8, m = 30
-  while (h < 16) {  // stops before 16:00 → last slot is 15:30
-    slots.push(`${String(h).padStart(2, '0')}:${m === 0 ? '00' : '30'}`)
-    m += 30; if (m === 60) { m = 0; h++ }
-  }
-  return slots
+  return [...FIXED_SLOTS]
 }
 
-// ─── 2.5-hour buffer ──────────────────────────────────────────────────────────
+export function isBookableDay(dow: number): boolean {
+  return BOOKABLE_DAYS.has(dow)
+}
 
-// Returns the booked slot + the next 4 slots (covers 0–120 min from booking;
-// the 150-min / 2.5-hr mark is the first slot that becomes available again).
-export function expandWithBuffer(bookedTime: string, allSlots: string[]): string[] {
-  const idx = allSlots.indexOf(bookedTime)
-  if (idx === -1) return [bookedTime]
-  return allSlots.slice(idx, idx + 5)
+// ─── Slot blocking ─────────────────────────────────────────────────────────────
+
+function slotToMinutes(slot: string): number {
+  const [h, m] = slot.split(':').map(Number)
+  return h * 60 + m
+}
+
+// Returns all slots that overlap a 2-hour appointment + travel (both ways) + 30-min grace.
+// travelMinutes = one-way travel time. Total blocked = 2h + (travelMinutes × 2) + 30min.
+export function expandWithBuffer(bookedTime: string, allSlots: string[], travelOneWayMinutes = 0): string[] {
+  const blockedDuration = 120 + travelOneWayMinutes * 2 + 30
+  const startMin = slotToMinutes(bookedTime)
+  return allSlots.filter(s => {
+    const sMin = slotToMinutes(s)
+    return sMin >= startMin && sMin < startMin + blockedDuration
+  })
 }
 
 // ─── Arizona time helpers (UTC-7, no DST) ─────────────────────────────────────
@@ -33,12 +45,6 @@ function nowAZMinutes(): number {
   return az.getUTCHours() * 60 + az.getUTCMinutes()
 }
 
-function slotToMinutes(slot: string): number {
-  const [h, m] = slot.split(':').map(Number)
-  return h * 60 + m
-}
-
-// Filters out slots that have already started for the current day
 export function filterPastSlots(slots: string[], date: string): string[] {
   if (date !== todayAZ()) return slots
   const now = nowAZMinutes()

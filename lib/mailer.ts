@@ -11,6 +11,51 @@ export function getTransporter() {
   })
 }
 
+// ─── ICS calendar attachment ──────────────────────────────────────────────────
+
+export function generateICS(opts: {
+  id: string
+  date: string   // YYYY-MM-DD
+  time: string   // HH:MM (Arizona local, UTC-7)
+  customerName: string
+  serviceNames?: string
+  durationMinutes?: number
+}): string {
+  const [y, mo, d] = opts.date.split('-').map(Number)
+  const [h, m] = opts.time.split(':').map(Number)
+  const duration = opts.durationMinutes ?? 120
+
+  // Arizona is UTC-7 (no DST) — add 7 hours for UTC
+  const startUtc = new Date(Date.UTC(y, mo - 1, d, h + 7, m, 0))
+  const endUtc = new Date(startUtc.getTime() + duration * 60_000)
+
+  const fmt = (dt: Date) =>
+    dt.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+
+  const desc = opts.serviceNames
+    ? opts.serviceNames.replace(/,/g, '\\,')
+    : 'Nail appointment'
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Bien Bonita Nails & Spa//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    `UID:${opts.id}@bienbonitanailspa.com`,
+    `DTSTAMP:${fmt(new Date())}`,
+    `DTSTART:${fmt(startUtc)}`,
+    `DTEND:${fmt(endUtc)}`,
+    'SUMMARY:Bien Bonita Nails & Spa Appointment',
+    `DESCRIPTION:${desc}`,
+    'LOCATION:Bien Bonita Nails & Spa',
+    `ORGANIZER;CN=Bien Bonita Nails & Spa:mailto:${process.env.GMAIL_USER ?? 'bienbonitanailandspa@gmail.com'}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n')
+}
+
 // ─── Shared layout wrapper ────────────────────────────────────────────────────
 
 function emailShell(body: string) {
@@ -86,7 +131,90 @@ function appointmentCard({
   </div>`
 }
 
-// ─── Confirmation email ───────────────────────────────────────────────────────
+// ─── Booking request received (to customer — pending approval) ────────────────
+
+export function bookingRequestEmailHtml(opts: {
+  customerName: string
+  date: string
+  time: string
+  serviceNames: string
+  locationType?: string
+  mobileArea?: string
+  total?: number
+}) {
+  return emailShell(`
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">request received!</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">We Got Your Booking</h2>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
+      Hi ${opts.customerName}! We&rsquo;ve received your appointment request and will confirm it shortly. We&rsquo;ll send you another email once it&rsquo;s approved.
+    </p>
+
+    ${appointmentCard(opts)}
+
+    <p style="margin:0 0 16px;font-size:14px;color:#8B7355;line-height:1.6;">
+      Questions? Reach us at
+      <a href="mailto:bienbonitanailandspa@gmail.com" style="color:#C4622D;text-decoration:none;">bienbonitanailandspa@gmail.com</a>.
+    </p>
+    <p style="margin:0;font-size:13px;color:#B0A090;line-height:1.5;">
+      Your appointment slot is held pending approval. You&rsquo;ll hear from us soon!
+    </p>
+  `)
+}
+
+// ─── New booking notification (to admin) ─────────────────────────────────────
+
+export function bookingRequestAdminEmailHtml(opts: {
+  customerName: string
+  customerEmail: string
+  customerPhone?: string
+  date: string
+  time: string
+  serviceNames: string
+  locationType?: string
+  mobileArea?: string
+  mobileFee?: number
+  total?: number
+  notes?: string
+}) {
+  const formattedDate = new Date(opts.date + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
+  const adminUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bien-bonita.vercel.app'
+  return emailShell(`
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">new booking!</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Approval Needed</h2>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
+      <strong>${opts.customerName}</strong> has submitted a booking request. Log in to approve or reject it.
+    </p>
+
+    <div style="background:#F5F0E8;border-radius:16px;padding:20px 24px;margin-bottom:16px;">
+      <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Appointment Details</p>
+      <p style="margin:0 0 4px;font-size:18px;color:#3D2B1F;font-weight:600;">${formattedDate}</p>
+      <p style="margin:0 0 4px;font-size:15px;color:#C4622D;font-weight:600;">⏰ ${opts.time}</p>
+      ${opts.serviceNames ? `<p style="margin:0 0 4px;font-size:14px;color:#5C7A6E;">✨ ${opts.serviceNames}</p>` : ''}
+      ${opts.locationType === 'mobile' && opts.mobileArea ? `<p style="margin:0 0 4px;font-size:14px;color:#8B7355;">🚗 Mobile · ${opts.mobileArea}${opts.mobileFee ? ` (+$${opts.mobileFee})` : ''}</p>` : '<p style="margin:0 0 4px;font-size:14px;color:#8B7355;">🏠 In salon</p>'}
+      ${opts.total ? `<p style="margin:8px 0 0;font-size:15px;color:#3D2B1F;font-weight:600;border-top:1px solid #E8DFD0;padding-top:8px;">Est. $${opts.total}</p>` : ''}
+      ${opts.notes ? `<p style="margin:8px 0 0;font-size:13px;color:#8B7355;font-style:italic;">"${opts.notes}"</p>` : ''}
+    </div>
+
+    <div style="background:#F5F0E8;border-radius:16px;padding:16px 24px;margin-bottom:24px;">
+      <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Client</p>
+      <p style="margin:0 0 2px;font-size:14px;color:#3D2B1F;">${opts.customerEmail}</p>
+      ${opts.customerPhone ? `<p style="margin:0;font-size:14px;color:#3D2B1F;">${opts.customerPhone}</p>` : ''}
+    </div>
+
+    <div style="text-align:center;margin-bottom:8px;">
+      <a href="${adminUrl}/admin"
+         style="display:inline-block;padding:12px 32px;background:#C4622D;border-radius:50px;font-family:sans-serif;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#FFFDF8;text-decoration:none;">
+        Review in Dashboard
+      </a>
+    </div>
+  `)
+}
+
+// ─── Confirmation email (sent after admin approves) ───────────────────────────
 
 export function confirmationEmailHtml(opts: {
   customerName: string
@@ -100,10 +228,10 @@ export function confirmationEmailHtml(opts: {
 }) {
   return emailShell(`
     <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">you&rsquo;re booked!</p>
-    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Booking Confirmed</h2>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Appointment Confirmed</h2>
 
     <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
-      Hi ${opts.customerName}! Your appointment has been confirmed. We&rsquo;re so excited to see you &mdash; get ready to feel amazing!
+      Hi ${opts.customerName}! Your appointment has been confirmed. We&rsquo;re so excited to see you &mdash; get ready to feel amazing! A calendar invite is attached to this email.
     </p>
 
     ${appointmentCard(opts)}
@@ -120,6 +248,35 @@ export function confirmationEmailHtml(opts: {
     </div>
     <p style="margin:0;font-size:14px;color:#8B7355;line-height:1.6;">
       We appreciate you choosing Bien Bonita. See you soon!
+    </p>
+  `)
+}
+
+// ─── Rejection email (sent after admin rejects) ───────────────────────────────
+
+export function rejectionEmailHtml(opts: {
+  customerName: string
+  date: string
+  time: string
+}) {
+  const formattedDate = new Date(opts.date + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
+  return emailShell(`
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">we&rsquo;re sorry!</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Booking Unavailable</h2>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
+      Hi ${opts.customerName}, unfortunately we&rsquo;re unable to confirm your appointment request for <strong>${formattedDate} at ${opts.time}</strong>.
+    </p>
+
+    <p style="margin:0 0 20px;font-size:14px;color:#8B7355;line-height:1.6;">
+      This may be due to a scheduling conflict. Please reach out to us directly to find a time that works:
+      <a href="mailto:bienbonitanailandspa@gmail.com" style="color:#C4622D;text-decoration:none;">bienbonitanailandspa@gmail.com</a>
+    </p>
+
+    <p style="margin:0;font-size:14px;color:#8B7355;line-height:1.6;">
+      We appreciate your patience and hope to see you soon!
     </p>
   `)
 }

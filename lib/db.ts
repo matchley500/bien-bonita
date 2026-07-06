@@ -21,7 +21,7 @@ export interface Appointment {
   mobileArea: string
   mobileFee: number
   createdAt: string
-  status?: 'pending' | 'done'
+  status?: 'pending_approval' | 'confirmed' | 'done' | 'rejected'
   finalPrice?: number
   rescheduleRequest?: {
     requestedDate: string
@@ -37,8 +37,15 @@ export interface BlockedData {
   weekdays: number[] // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
 }
 
+export interface MobileArea {
+  id: string
+  label: string
+  fee: number
+  travelMinutes?: number // one-way travel time from salon in minutes
+}
+
 export interface MobileCharges {
-  areas: { id: string; label: string; fee: number }[]
+  areas: MobileArea[]
 }
 
 export interface Service {
@@ -49,6 +56,18 @@ export interface Service {
   duration: string
   category: string
   hasGelUpgrade?: boolean
+}
+
+export interface Customer {
+  id: string
+  email: string
+  passwordHash: string
+  name: string
+  createdAt: string
+}
+
+export interface Settings {
+  bookingOpen: boolean
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -80,11 +99,13 @@ const DEFAULT_SERVICES: Service[] = [
 
 const DEFAULT_MOBILE_CHARGES: MobileCharges = {
   areas: [
-    { id: 'in-town',                  label: 'In Town',                  fee: 10 },
-    { id: 'vail-rita-ranch',          label: 'Vail / Rita Ranch',        fee: 20 },
-    { id: 'north-tucson-oro-valley',  label: 'North Tucson / Oro Valley', fee: 25 },
+    { id: 'in-town',                 label: 'In Town',                   fee: 10, travelMinutes: 15 },
+    { id: 'vail-rita-ranch',         label: 'Vail / Rita Ranch',         fee: 20, travelMinutes: 25 },
+    { id: 'north-tucson-oro-valley', label: 'North Tucson / Oro Valley', fee: 25, travelMinutes: 35 },
   ],
 }
+
+const DEFAULT_SETTINGS: Settings = { bookingOpen: false }
 
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
@@ -125,9 +146,38 @@ export async function setServices(data: Service[]): Promise<void> {
 // ─── Mobile Charges ───────────────────────────────────────────────────────────
 
 export async function getMobileCharges(): Promise<MobileCharges> {
-  return (await redis.get<MobileCharges>('mobile-charges')) ?? DEFAULT_MOBILE_CHARGES
+  const raw = await redis.get<MobileCharges>('mobile-charges')
+  if (!raw) return DEFAULT_MOBILE_CHARGES
+  // Ensure travelMinutes is present (backwards compat)
+  return {
+    areas: raw.areas.map(a => ({
+      ...a,
+      travelMinutes: a.travelMinutes ?? DEFAULT_MOBILE_CHARGES.areas.find(d => d.id === a.id)?.travelMinutes ?? 15,
+    })),
+  }
 }
 
 export async function setMobileCharges(data: MobileCharges): Promise<void> {
   await redis.set('mobile-charges', data)
+}
+
+// ─── Customers ────────────────────────────────────────────────────────────────
+
+export async function getCustomers(): Promise<Customer[]> {
+  return (await redis.get<Customer[]>('customers')) ?? []
+}
+
+export async function setCustomers(data: Customer[]): Promise<void> {
+  await redis.set('customers', data)
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+export async function getSettings(): Promise<Settings> {
+  const raw = await redis.get<Settings>('settings')
+  return raw ?? DEFAULT_SETTINGS
+}
+
+export async function setSettings(data: Settings): Promise<void> {
+  await redis.set('settings', data)
 }

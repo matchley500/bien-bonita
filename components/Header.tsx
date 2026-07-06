@@ -29,6 +29,7 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-8">
           <Link href="/" className="font-body text-xs tracking-widest uppercase text-darkbrown/60 hover:text-terracotta-500 transition-colors">Home</Link>
           <Link href="/#about" className="font-body text-xs tracking-widest uppercase text-darkbrown/60 hover:text-terracotta-500 transition-colors">About</Link>
+          <Link href="/login" className="font-body text-xs tracking-widest uppercase text-darkbrown/60 hover:text-terracotta-500 transition-colors">Client Login</Link>
           <Link href="/book" className="btn-primary !py-2 !px-6 text-xs">Book Now</Link>
         </nav>
 
@@ -51,6 +52,7 @@ export default function Header() {
         <nav className="md:hidden bg-parchment border-t border-sand/30 px-4 pb-5 pt-3 space-y-3">
           <Link href="/" className="block py-2 font-body text-xs tracking-widest uppercase text-darkbrown/60" onClick={() => setMenuOpen(false)}>Home</Link>
           <Link href="/#about" className="block py-2 font-body text-xs tracking-widest uppercase text-darkbrown/60" onClick={() => setMenuOpen(false)}>About</Link>
+          <Link href="/login" className="block py-2 font-body text-xs tracking-widest uppercase text-darkbrown/60" onClick={() => setMenuOpen(false)}>Client Login</Link>
           <Link href="/book" className="btn-primary block text-center mt-3 text-xs" onClick={() => setMenuOpen(false)}>Book Now</Link>
         </nav>
       )}

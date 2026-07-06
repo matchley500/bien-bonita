@@ -20,11 +20,11 @@ interface Appointment {
   serviceNames: string; total: number; notes: string
   locationType?: string; mobileArea?: string; mobileFee?: number
   createdAt: string
-  status?: 'pending' | 'done'
+  status?: 'pending_approval' | 'confirmed' | 'done' | 'rejected'
   finalPrice?: number
   rescheduleRequest?: RescheduleRequest
 }
-interface MobileArea { id: string; label: string; fee: number }
+interface MobileArea { id: string; label: string; fee: number; travelMinutes?: number }
 interface BlockedData {
   dates: string[]
   slots: { date: string; time: string }[]
@@ -42,19 +42,12 @@ const EMPTY_SVC = { name: '', description: '', price: '', duration: '', category
 const EMPTY_APPT = { date: '', time: '', customerName: '', customerEmail: '', customerPhone: '', serviceNames: '', total: '', notes: '' }
 type EditForm = { date: string; time: string; customerName: string; customerEmail: string; customerPhone: string; serviceNames: string; total: string; notes: string }
 
-function buildTimeSlots() {
-  const slots: { value: string; label: string }[] = []
-  let h = 8, m = 30
-  while (h < 16) { // last slot 15:30 (3:30 PM)
-    const period = h < 12 ? 'AM' : 'PM'
-    const dh = h > 12 ? h - 12 : h === 0 ? 12 : h
-    const dm = m === 0 ? '00' : '30'
-    slots.push({ value: `${String(h).padStart(2, '0')}:${dm}`, label: `${dh}:${dm} ${period}` })
-    m += 30; if (m === 60) { m = 0; h++ }
-  }
-  return slots
-}
-const TIME_SLOTS = buildTimeSlots()
+// Fixed 3-slot system (Tue-Thu, 9:30 AM / 12:00 PM / 2:30 PM)
+const TIME_SLOTS = [
+  { value: '09:30', label: '9:30 AM' },
+  { value: '12:00', label: '12:00 PM' },
+  { value: '14:30', label: '2:30 PM' },
+]
 function fmtTime(val: string) { return TIME_SLOTS.find(s => s.value === val)?.label ?? val }
 function fmtDate(d: string) {
   if (!d) return ''
@@ -140,7 +133,7 @@ function MiniCalendar({
 
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export default function AdminDashboard() {
-  const [tab, setTab] = useState<'appointments' | 'availability' | 'services' | 'mobile' | 'accounting'>('appointments')
+  const [tab, setTab] = useState<'appointments' | 'availability' | 'services' | 'mobile' | 'accounting' | 'settings'>('appointments')
   const [services, setServices] = useState<Service[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [mobileAreas, setMobileAreas] = useState<MobileArea[]>([])
@@ -179,6 +172,11 @@ export default function AdminDashboard() {
   const [editForm, setEditForm] = useState<EditForm>(EMPTY_APPT)
   const [savingEdit, setSavingEdit] = useState(false)
 
+  // Settings
+  const [bookingOpen, setBookingOpen] = useState(false)
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [settingsSaved, setSettingsSaved] = useState(false)
+
   // Test reminder email
   const [testEmailState, setTestEmailState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
@@ -196,13 +194,15 @@ export default function AdminDashboard() {
         fetch('/api/admin/appointments').then(r => r.json()),
         fetch('/api/admin/mobile-charges').then(r => r.json()),
         fetch('/api/admin/blocked').then(r => r.json()),
-      ]).then(([svcs, apts, mob, blk]) => {
+        fetch('/api/admin/settings').then(r => r.json()),
+      ]).then(([svcs, apts, mob, blk, settings]) => {
         setServices(svcs)
         setAppointments(apts)
         const areas = mob.areas || []
         setMobileAreas(areas)
         setMobileEdits(areas.map((a: MobileArea) => ({ ...a })))
         setBlocked(blk)
+        setBookingOpen(settings.bookingOpen ?? false)
       })
     })
   }, [router])
@@ -331,6 +331,38 @@ export default function AdminDashboard() {
     await refreshBlocked()
   }
 
+  // ── Approve / Reject appointment ──
+  const handleApprove = async (id: string) => {
+    await fetch(`/api/admin/appointments/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'confirmed' }),
+    })
+    await refreshAppointments()
+  }
+  const handleReject = async (id: string) => {
+    if (!confirm('Reject this booking request? A rejection email will be sent to the customer.')) return
+    await fetch(`/api/admin/appointments/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'rejected' }),
+    })
+    await refreshAppointments()
+  }
+
+  // ── Settings ──
+  const handleSettingsSave = async () => {
+    setSavingSettings(true)
+    await fetch('/api/admin/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingOpen }),
+    })
+    setSavingSettings(false)
+    setSettingsSaved(true)
+    setTimeout(() => setSettingsSaved(false), 2500)
+  }
+
   // ── Mobile charges ──
   const handleMobileSave = async (e: React.FormEvent) => {
     e.preventDefault(); setSavingMobile(true)
@@ -352,7 +384,7 @@ export default function AdminDashboard() {
   blockedDateSet.forEach(d => { if (!calMarkers[d]) calMarkers[d] = 'blocked' })
 
   const dayAppointments = selectedDate
-    ? appointments.filter(a => a.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time))
+    ? appointments.filter(a => a.date === selectedDate && a.status !== 'rejected').sort((a, b) => a.time.localeCompare(b.time))
     : []
   const dayBlockedSlots = selectedDate
     ? blocked.slots.filter(s => s.date === selectedDate).map(s => s.time)
@@ -363,15 +395,18 @@ export default function AdminDashboard() {
     return <div className="min-h-[60vh] flex items-center justify-center"><p className="font-body tracking-widest uppercase text-sm text-darkbrown/40">Loading…</p></div>
   }
 
+  const pendingAppts = appointments.filter(a => a.status === 'pending_approval')
+  const activeAppts = appointments.filter(a => a.status !== 'rejected' && a.status !== 'pending_approval')
   const doneAppointments = appointments.filter(a => a.status === 'done')
   const accountingTotal = doneAppointments.reduce((sum, a) => sum + (a.finalPrice ?? a.total), 0)
 
   const tabConfig = [
-    { key: 'appointments', label: `Appointments${appointments.length ? ` (${appointments.length})` : ''}` },
+    { key: 'appointments', label: `Appointments${activeAppts.length ? ` (${activeAppts.length})` : ''}${pendingAppts.length ? ` · ${pendingAppts.length} pending` : ''}` },
     { key: 'availability', label: 'Availability' },
     { key: 'services', label: 'Services' },
     { key: 'mobile', label: 'Mobile Charges' },
     { key: 'accounting', label: `Accounting${doneAppointments.length ? ` (${doneAppointments.length})` : ''}` },
+    { key: 'settings', label: 'Settings' },
   ] as const
 
   const handleTestEmail = async () => {
@@ -422,6 +457,59 @@ export default function AdminDashboard() {
 
       {/* ════════════════ APPOINTMENTS TAB ════════════════ */}
       {tab === 'appointments' && (
+        <>
+        {/* Pending approval section */}
+        {pendingAppts.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="inline-flex items-center gap-2 bg-mustard-100 text-mustard-700 font-body text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-mustard-500 inline-block animate-pulse" />
+                {pendingAppts.length} Pending Approval
+              </span>
+            </div>
+            <div className="space-y-3">
+              {pendingAppts.sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).map(appt => (
+                <div key={appt.id} className="card border-mustard-200 bg-mustard-50/40">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div className="rounded-2xl px-4 py-3 text-center min-w-[90px] bg-mustard-100 border border-mustard-300">
+                      <p className="font-display text-xl text-mustard-700 leading-tight">{fmtTime(appt.time)}</p>
+                      <p className="text-[9px] font-body font-bold uppercase tracking-widest text-mustard-500 mt-0.5">Pending</p>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-sub font-bold text-darkbrown text-base">{appt.customerName}</p>
+                      <p className="font-body text-xs text-darkbrown/50 mt-0.5">{fmtDate(appt.date)}</p>
+                      {appt.serviceNames && <p className="text-xs font-body text-teal-600 mt-0.5">{appt.serviceNames}</p>}
+                      {appt.locationType === 'mobile' && appt.mobileArea && (
+                        <p className="text-xs font-body text-mustard-600 mt-0.5">🚗 Mobile — {appt.mobileArea}{appt.mobileFee ? ` (+$${appt.mobileFee})` : ''}</p>
+                      )}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs font-body text-darkbrown/50">
+                        {appt.customerPhone && <span>📞 {appt.customerPhone}</span>}
+                        {appt.customerEmail && <span>✉ {appt.customerEmail}</span>}
+                      </div>
+                      {appt.notes && <p className="mt-1 text-xs font-body text-darkbrown/40 italic">{appt.notes}</p>}
+                    </div>
+                    <div className="flex sm:flex-col gap-2 shrink-0">
+                      {appt.total > 0 && <p className="font-script text-xl text-terracotta-500 text-center">${appt.total}</p>}
+                      <button
+                        onClick={() => handleApprove(appt.id)}
+                        className="text-xs font-body font-bold text-forest-600 hover:text-forest-800 uppercase tracking-wider transition-colors px-3 py-1.5 rounded-lg bg-forest-50 hover:bg-forest-100 border border-forest-300"
+                      >
+                        ✓ Approve
+                      </button>
+                      <button
+                        onClick={() => handleReject(appt.id)}
+                        className="text-xs font-body font-bold text-red-500 hover:text-red-700 uppercase tracking-wider transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50"
+                      >
+                        ✕ Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-sand/40 mt-8 mb-0" />
+          </div>
+        )}
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1 space-y-4">
             <MiniCalendar markers={calMarkers} blockedWeekdays={blocked.weekdays} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
@@ -638,6 +726,7 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* ════════════════ AVAILABILITY TAB ════════════════ */}
@@ -906,8 +995,8 @@ export default function AdminDashboard() {
 
           <form onSubmit={handleMobileSave} className="card space-y-4">
             {mobileEdits.map((area, i) => (
-              <div key={area.id} className="flex items-center gap-4 p-4 rounded-2xl bg-parchment/60">
-                <div className="flex-1">
+              <div key={area.id} className="p-4 rounded-2xl bg-parchment/60 space-y-3">
+                <div>
                   <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Area Name</label>
                   <input
                     type="text"
@@ -916,7 +1005,8 @@ export default function AdminDashboard() {
                     className="input-field"
                   />
                 </div>
-                <div className="w-28">
+                <div className="grid grid-cols-2 gap-3">
+                <div>
                   <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Fee ($)</label>
                   <input
                     type="number"
@@ -926,6 +1016,18 @@ export default function AdminDashboard() {
                     onChange={e => setMobileEdits(prev => prev.map((a, idx) => idx === i ? { ...a, fee: Number(e.target.value) } : a))}
                     className="input-field"
                   />
+                </div>
+                <div>
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Travel (min, one-way)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="5"
+                    value={area.travelMinutes ?? 15}
+                    onChange={e => setMobileEdits(prev => prev.map((a, idx) => idx === i ? { ...a, travelMinutes: Number(e.target.value) } : a))}
+                    className="input-field"
+                  />
+                </div>
                 </div>
               </div>
             ))}
@@ -1056,6 +1158,64 @@ export default function AdminDashboard() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* ════════════════ SETTINGS TAB ════════════════ */}
+      {tab === 'settings' && (
+        <div className="max-w-lg space-y-8">
+          <div>
+            <p className="font-script text-teal-500 text-xl mb-0">manage</p>
+            <h2 className="font-display text-3xl text-darkbrown">Settings</h2>
+          </div>
+
+          {/* Booking open/closed */}
+          <div className="card space-y-4">
+            <div>
+              <p className="font-sub font-bold text-darkbrown text-lg">Online Booking</p>
+              <p className="font-body text-sm text-darkbrown/40 mt-1 tracking-wide">
+                When closed, new customers cannot submit booking requests online. The &ldquo;closed for new clients&rdquo; bubble will appear on the site.
+              </p>
+            </div>
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-parchment/60">
+              <div>
+                <p className="font-body text-sm font-bold text-darkbrown uppercase tracking-widest">
+                  {bookingOpen ? 'Open for Bookings' : 'Closed for New Clients'}
+                </p>
+                <p className="font-body text-xs text-darkbrown/40 mt-0.5">
+                  {bookingOpen ? 'Customers can submit booking requests.' : 'Booking requests are currently blocked.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBookingOpen(v => !v)}
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${bookingOpen ? 'bg-forest-500' : 'bg-darkbrown/20'}`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${bookingOpen ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            <div className="flex items-center gap-4">
+              <button onClick={handleSettingsSave} disabled={savingSettings} className="btn-primary disabled:opacity-50">
+                {savingSettings ? 'Saving…' : 'Save Settings'}
+              </button>
+              {settingsSaved && <span className="text-xs font-body text-forest-600 font-bold tracking-wide">✓ Saved!</span>}
+            </div>
+          </div>
+
+          {/* Schedule info */}
+          <div className="card space-y-3">
+            <p className="font-sub font-bold text-darkbrown text-lg">Booking Schedule</p>
+            <div className="space-y-2 font-body text-sm text-darkbrown/60">
+              <p>📅 <strong>Days:</strong> Tuesday, Wednesday, Thursday</p>
+              <p>⏰ <strong>Slots:</strong> 9:30 AM · 12:00 PM · 2:30 PM</p>
+              <p>👥 <strong>Max clients per day:</strong> 3</p>
+              <p>🕐 <strong>Appointment duration:</strong> 2 hours + 30 min grace</p>
+              <p>🚗 <strong>Mobile travel:</strong> Added per area (configure in Mobile Charges tab)</p>
+            </div>
+            <p className="font-body text-xs text-darkbrown/30 tracking-wide">
+              These settings are built into the scheduling system. Contact your developer to change them.
+            </p>
+          </div>
         </div>
       )}
 

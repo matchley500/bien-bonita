@@ -5,19 +5,11 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import BookingCalendar from '@/components/BookingCalendar'
 
-function buildTimeSlots() {
-  const slots: { value: string; label: string }[] = []
-  let h = 8, m = 30
-  while (h < 16) {
-    const period = h < 12 ? 'AM' : 'PM'
-    const dh = h > 12 ? h - 12 : h === 0 ? 12 : h
-    const dm = m === 0 ? '00' : '30'
-    slots.push({ value: `${String(h).padStart(2, '0')}:${dm}`, label: `${dh}:${dm} ${period}` })
-    m += 30; if (m === 60) { m = 0; h++ }
-  }
-  return slots
-}
-const ALL_TIME_SLOTS = buildTimeSlots()
+const ALL_TIME_SLOTS = [
+  { value: '09:30', label: '9:30 AM' },
+  { value: '12:00', label: '12:00 PM' },
+  { value: '14:30', label: '2:30 PM' },
+]
 
 function ReschedulePage() {
   const params = useSearchParams()

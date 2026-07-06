@@ -33,19 +33,12 @@ const categoryColors: Record<string, string> = {
 const categoryOrder = ['manicure', 'pedicure', 'gel', 'extensions', 'removals', 'designs', 'addons']
 const GEL_UPGRADE_PRICE = 15
 
-function buildTimeSlots(): { value: string; label: string }[] {
-  const slots = []
-  let h = 8, m = 30
-  while (h < 16 || (h === 16 && m === 0)) {
-    const period = h < 12 ? 'AM' : 'PM'
-    const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h
-    const displayM = m === 0 ? '00' : '30'
-    slots.push({ value: `${String(h).padStart(2, '0')}:${displayM}`, label: `${displayH}:${displayM} ${period}` })
-    m += 30; if (m === 60) { m = 0; h++ }
-  }
-  return slots
-}
-const ALL_TIME_SLOTS = buildTimeSlots()
+// Fixed 3-slot system: 9:30 AM, 12:00 PM, 2:30 PM (Tue–Thu only)
+const ALL_TIME_SLOTS = [
+  { value: '09:30', label: '9:30 AM' },
+  { value: '12:00', label: '12:00 PM' },
+  { value: '14:30', label: '2:30 PM' },
+]
 
 function formatTime(val: string) {
   return ALL_TIME_SLOTS.find(s => s.value === val)?.label ?? val
