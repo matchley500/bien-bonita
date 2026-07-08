@@ -62,18 +62,20 @@ function statusBadge(appt: Appointment) {
 export default function DashboardPage() {
   const router = useRouter()
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/customer/me')
       .then(r => {
-        if (r.status === 401) { router.push('/login'); return null }
+        if (r.status === 401) { router.push('/login?next=/dashboard'); return null }
         return r.json()
       })
       .then(data => {
         if (!data) return
         setName(data.name)
+        setEmail(data.email ?? '')
         setAppointments(data.appointments ?? [])
         setLoading(false)
       })
@@ -151,7 +153,7 @@ export default function DashboardPage() {
                 {/* Can request reschedule if confirmed (not pending) */}
                 {appt.status !== 'pending_approval' && !appt.rescheduleRequest && !isPast(appt.date) && (
                   <Link
-                    href={`/reschedule?email=${encodeURIComponent(appt.customerName)}&date=${appt.date}`}
+                    href={`/reschedule?email=${encodeURIComponent(email)}&date=${appt.date}`}
                     className="inline-block font-body text-xs font-bold uppercase tracking-wider text-darkbrown/40 hover:text-terracotta-500 transition-colors"
                   >
                     Request Reschedule →
