@@ -30,9 +30,9 @@ export default function BookingCalendar({
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
-        <button onClick={onPrev} className="w-9 h-9 rounded-full hover:bg-parchment flex items-center justify-center text-darkbrown/60 hover:text-darkbrown text-lg transition-colors">‹</button>
+        <button type="button" onClick={onPrev} className="w-9 h-9 rounded-full hover:bg-parchment flex items-center justify-center text-darkbrown/60 hover:text-darkbrown text-lg transition-colors">‹</button>
         <p className="font-sub font-bold text-darkbrown tracking-wide">{monthLabel}</p>
-        <button onClick={onNext} className="w-9 h-9 rounded-full hover:bg-parchment flex items-center justify-center text-darkbrown/60 hover:text-darkbrown text-lg transition-colors">›</button>
+        <button type="button" onClick={onNext} className="w-9 h-9 rounded-full hover:bg-parchment flex items-center justify-center text-darkbrown/60 hover:text-darkbrown text-lg transition-colors">›</button>
       </div>
 
       <div className="grid grid-cols-7 mb-1">
@@ -54,6 +54,7 @@ export default function BookingCalendar({
           return (
             <button
               key={day}
+              type="button"
               onClick={() => !disabled && onSelectDate(key)}
               disabled={disabled}
               title={isUnavailable && !isPast ? 'Fully booked' : undefined}

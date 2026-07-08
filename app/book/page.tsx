@@ -74,6 +74,7 @@ function TimeSlotPicker({
         return (
           <button
             key={slot}
+            type="button"
             onClick={() => onSelect(slot)}
             className={`py-2 px-1 rounded-xl border-2 text-xs font-body font-bold tracking-wide transition-all ${
               selectedTime === slot
