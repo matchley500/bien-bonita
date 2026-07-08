@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession } from '@/lib/auth'
-import { getAppointments, setAppointments } from '@/lib/db'
+import { getAppointments, setAppointments, getSettings } from '@/lib/db'
 import { sendMail, confirmationEmailHtml, rejectionEmailHtml, generateICS } from '@/lib/mailer'
 
 const SLOT_LABELS: Record<string, string> = {
@@ -38,12 +38,17 @@ export async function PUT(
     merged.customerEmail
   ) {
     try {
+      const settings = await getSettings()
+      const location = merged.locationType === 'mobile' && merged.address
+        ? merged.address
+        : settings.salonAddress || 'Bien Bonita Nails & Spa'
       const ics = generateICS({
         id: merged.id,
         date: merged.date,
         time: merged.time,
         customerName: merged.customerName,
         serviceNames: merged.serviceNames,
+        location,
       })
       await sendMail({
         from: `"Bien Bonita Nails & Spa" <${adminEmail}>`,
@@ -58,6 +63,8 @@ export async function PUT(
           locationType: merged.locationType,
           mobileArea: merged.mobileArea,
           total: merged.total,
+          salonAddress: settings.salonAddress,
+          address: merged.address,
         }),
         attachments: [{
           filename: 'appointment.ics',

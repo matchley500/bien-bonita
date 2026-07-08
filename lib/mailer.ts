@@ -50,6 +50,7 @@ export function generateICS(opts: {
   customerName: string
   serviceNames?: string
   durationMinutes?: number
+  location?: string
 }): string {
   const [y, mo, d] = opts.date.split('-').map(Number)
   const [h, m] = opts.time.split(':').map(Number)
@@ -79,7 +80,7 @@ export function generateICS(opts: {
     `DTEND:${fmt(endUtc)}`,
     'SUMMARY:Bien Bonita Nails & Spa Appointment',
     `DESCRIPTION:${desc}`,
-    'LOCATION:Bien Bonita Nails & Spa',
+    `LOCATION:${(opts.location || 'Bien Bonita Nails & Spa').replace(/,/g, '\\,')}`,
     `ORGANIZER;CN=Bien Bonita Nails & Spa:mailto:${process.env.GMAIL_USER ?? 'bienbonitanailandspa@gmail.com'}`,
     'END:VEVENT',
     'END:VCALENDAR',
@@ -204,6 +205,7 @@ export function bookingRequestAdminEmailHtml(opts: {
   locationType?: string
   mobileArea?: string
   mobileFee?: number
+  address?: string
   total?: number
   notes?: string
 }) {
@@ -225,6 +227,7 @@ export function bookingRequestAdminEmailHtml(opts: {
       <p style="margin:0 0 4px;font-size:15px;color:#C4622D;font-weight:600;">⏰ ${opts.time}</p>
       ${opts.serviceNames ? `<p style="margin:0 0 4px;font-size:14px;color:#5C7A6E;">✨ ${opts.serviceNames}</p>` : ''}
       ${opts.locationType === 'mobile' && opts.mobileArea ? `<p style="margin:0 0 4px;font-size:14px;color:#8B7355;">🚗 Mobile · ${opts.mobileArea}${opts.mobileFee ? ` (+$${opts.mobileFee})` : ''}</p>` : '<p style="margin:0 0 4px;font-size:14px;color:#8B7355;">🏠 In salon</p>'}
+      ${opts.locationType === 'mobile' && opts.address ? `<p style="margin:0 0 4px;font-size:14px;color:#3D2B1F;">📍 ${opts.address}</p>` : ''}
       ${opts.total ? `<p style="margin:8px 0 0;font-size:15px;color:#3D2B1F;font-weight:600;border-top:1px solid #E8DFD0;padding-top:8px;">Est. $${opts.total}</p>` : ''}
       ${opts.notes ? `<p style="margin:8px 0 0;font-size:13px;color:#8B7355;font-style:italic;">"${opts.notes}"</p>` : ''}
     </div>
@@ -361,7 +364,20 @@ export function confirmationEmailHtml(opts: {
   locationType?: string
   mobileArea?: string
   total?: number
+  salonAddress?: string
+  address?: string
 }) {
+  const locationBlock = opts.locationType === 'mobile' && opts.address
+    ? `<div style="background:#F5F0E8;border-radius:16px;padding:16px 24px;margin-bottom:24px;">
+        <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">We&rsquo;re Coming to You</p>
+        <p style="margin:0;font-size:15px;color:#3D2B1F;">📍 ${opts.address}</p>
+      </div>`
+    : opts.salonAddress
+    ? `<div style="background:#F5F0E8;border-radius:16px;padding:16px 24px;margin-bottom:24px;">
+        <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Salon Address</p>
+        <p style="margin:0;font-size:15px;color:#3D2B1F;">📍 ${opts.salonAddress}</p>
+      </div>`
+    : ''
   return emailShell(`
     <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">you&rsquo;re booked!</p>
     <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Appointment Confirmed</h2>
@@ -371,6 +387,7 @@ export function confirmationEmailHtml(opts: {
     </p>
 
     ${appointmentCard(opts)}
+    ${locationBlock}
 
     <p style="margin:0 0 16px;font-size:14px;color:#8B7355;line-height:1.6;">
       Have questions? Reply to this email or reach us at

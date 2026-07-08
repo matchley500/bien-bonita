@@ -46,6 +46,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
+  const address = (body.address ?? '').trim()
+  if (body.locationType === 'mobile' && !address) {
+    return NextResponse.json({ error: 'Please provide your address for mobile service.' }, { status: 400 })
+  }
+
   // Validate day of week (Tue-Thu only)
   if (!isBookableDay(dayOfWeek(date))) {
     return NextResponse.json({ error: 'Bookings are only available Tuesday through Thursday.' }, { status: 400 })
@@ -94,6 +99,7 @@ export async function POST(request: NextRequest) {
     locationType: body.locationType || 'salon',
     mobileArea: body.mobileArea || '',
     mobileFee: Number(body.mobileFee) || 0,
+    address: body.locationType === 'mobile' ? address : '',
     createdAt: new Date().toISOString(),
     status: 'pending_approval' as const,
   }
@@ -139,6 +145,7 @@ export async function POST(request: NextRequest) {
           locationType: body.locationType || 'salon',
           mobileArea: body.mobileArea || '',
           mobileFee: Number(body.mobileFee) || 0,
+          address: newAppointment.address,
           total: Number(total) || 0,
           notes,
         }),

@@ -97,7 +97,7 @@ export default function BookPage() {
   const [gelUpgrades, setGelUpgrades] = useState<Set<string>>(new Set())
   const [step, setStep] = useState<'services' | 'details' | 'confirmed'>('services')
   const [submitting, setSubmitting] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', phone: '', date: '', time: '', notes: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', date: '', time: '', notes: '', address: '' })
   const [locationType, setLocationType] = useState<'salon' | 'mobile'>('salon')
   const [mobileArea, setMobileArea] = useState('')
 
@@ -201,6 +201,7 @@ export default function BookPage() {
         serviceNames: selectedServices.map(s => s.name).join(', '),
         total: grandTotal, notes: form.notes,
         locationType, mobileArea: locationType === 'mobile' ? mobileArea : '', mobileFee,
+        address: locationType === 'mobile' ? form.address : '',
       }),
     })
 
@@ -453,6 +454,17 @@ export default function BookPage() {
                         </button>
                       ))}
                     </div>
+                    <div className="mt-4">
+                      <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Your Address *</label>
+                      <input
+                        type="text" required
+                        value={form.address}
+                        onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                        className="input-field"
+                        placeholder="Street address, city, ZIP"
+                      />
+                      <p className="font-body text-[11px] text-darkbrown/30 mt-1">So we know exactly where to bring the salon to you.</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -516,7 +528,7 @@ export default function BookPage() {
                 <button type="button" onClick={() => setStep('services')} className="btn-secondary flex-1">Back</button>
                 <button
                   type="submit"
-                  disabled={submitting || !form.date || !form.time || (locationType === 'mobile' && !mobileArea)}
+                  disabled={submitting || !form.date || !form.time || (locationType === 'mobile' && (!mobileArea || !form.address.trim()))}
                   className="btn-primary flex-1 disabled:opacity-40"
                 >
                   {submitting ? 'Sending…' : 'Submit Booking'}

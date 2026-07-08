@@ -19,6 +19,7 @@ interface Appointment {
   customerName: string; customerEmail: string; customerPhone: string
   serviceNames: string; total: number; notes: string
   locationType?: string; mobileArea?: string; mobileFee?: number
+  address?: string
   createdAt: string
   status?: 'pending_approval' | 'confirmed' | 'done' | 'rejected'
   finalPrice?: number
@@ -184,6 +185,7 @@ export default function AdminDashboard() {
 
   // Settings
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [salonAddress, setSalonAddress] = useState('')
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
 
@@ -217,6 +219,7 @@ export default function AdminDashboard() {
         setMobileEdits(areas.map((a: MobileArea) => ({ ...a })))
         setBlocked(blk)
         setBookingOpen(settings.bookingOpen ?? false)
+        setSalonAddress(settings.salonAddress ?? '')
         setCustomers(Array.isArray(custs) ? custs : [])
       })
     })
@@ -413,7 +416,7 @@ export default function AdminDashboard() {
     await fetch('/api/admin/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookingOpen }),
+      body: JSON.stringify({ bookingOpen, salonAddress }),
     })
     setSavingSettings(false)
     setSettingsSaved(true)
@@ -582,6 +585,9 @@ export default function AdminDashboard() {
                       {appt.locationType === 'mobile' && appt.mobileArea && (
                         <p className="text-xs font-body text-mustard-600 mt-0.5">🚗 Mobile — {appt.mobileArea}{appt.mobileFee ? ` (+$${appt.mobileFee})` : ''}</p>
                       )}
+                      {appt.locationType === 'mobile' && appt.address && (
+                        <p className="text-xs font-body text-darkbrown/60 mt-0.5">📍 {appt.address}</p>
+                      )}
                       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs font-body text-darkbrown/50">
                         {appt.customerPhone && <span>📞 {appt.customerPhone}</span>}
                         {appt.customerEmail && <span>✉ {appt.customerEmail}</span>}
@@ -732,6 +738,9 @@ export default function AdminDashboard() {
                                 {appt.serviceNames && <p className="text-xs font-body text-teal-600 mt-0.5">{appt.serviceNames}</p>}
                                 {appt.locationType === 'mobile' && appt.mobileArea && (
                                   <p className="text-xs font-body text-mustard-600 mt-0.5">🚗 Mobile — {appt.mobileArea}{appt.mobileFee ? ` (+$${appt.mobileFee})` : ''}</p>
+                                )}
+                                {appt.locationType === 'mobile' && appt.address && (
+                                  <p className="text-xs font-body text-darkbrown/60 mt-0.5">📍 {appt.address}</p>
                                 )}
                               </div>
                               <div className="text-right shrink-0">
@@ -1361,6 +1370,19 @@ export default function AdminDashboard() {
               >
                 <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${bookingOpen ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
+            </div>
+            <div>
+              <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Salon Address</label>
+              <input
+                type="text"
+                value={salonAddress}
+                onChange={e => setSalonAddress(e.target.value)}
+                className="input-field"
+                placeholder="123 Main St, Tucson, AZ 85701"
+              />
+              <p className="font-body text-[11px] text-darkbrown/30 mt-1">
+                Sent to clients in their confirmation email and calendar invite for in-salon appointments.
+              </p>
             </div>
             <div className="flex items-center gap-4">
               <button onClick={handleSettingsSave} disabled={savingSettings} className="btn-primary disabled:opacity-50">

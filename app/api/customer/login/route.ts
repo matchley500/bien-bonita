@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCustomers } from '@/lib/db'
-import { verifyPassword, createCustomerSession } from '@/lib/customers'
+import { verifyPassword, createCustomerSession, CUSTOMER_SESSION_MAX_AGE } from '@/lib/customers'
 
 export async function POST(request: NextRequest) {
   const { email, password } = await request.json()
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: CUSTOMER_SESSION_MAX_AGE,
     path: '/',
   })
   return response

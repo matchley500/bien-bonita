@@ -19,10 +19,12 @@ export function verifyPassword(password: string, stored: string): boolean {
   return computed === hash
 }
 
+export const CUSTOMER_SESSION_MAX_AGE = 60 * 60 * 24 * 30 // 30 days
+
 export async function createCustomerSession(email: string): Promise<string> {
   return new SignJWT({ role: 'customer', email })
     .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('7d')
+    .setExpirationTime('30d')
     .sign(CUSTOMER_SECRET)
 }
 

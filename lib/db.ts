@@ -20,6 +20,8 @@ export interface Appointment {
   locationType: 'salon' | 'mobile'
   mobileArea: string
   mobileFee: number
+  // Client's address for mobile appointments
+  address?: string
   createdAt: string
   status?: 'pending_approval' | 'confirmed' | 'done' | 'rejected'
   finalPrice?: number
@@ -71,6 +73,7 @@ export interface Customer {
 
 export interface Settings {
   bookingOpen: boolean
+  salonAddress: string
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -108,7 +111,7 @@ const DEFAULT_MOBILE_CHARGES: MobileCharges = {
   ],
 }
 
-const DEFAULT_SETTINGS: Settings = { bookingOpen: false }
+const DEFAULT_SETTINGS: Settings = { bookingOpen: false, salonAddress: '' }
 
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
@@ -178,7 +181,8 @@ export async function setCustomers(data: Customer[]): Promise<void> {
 
 export async function getSettings(): Promise<Settings> {
   const raw = await redis.get<Settings>('settings')
-  return raw ?? DEFAULT_SETTINGS
+  // Merge with defaults so settings saved before new fields existed stay valid
+  return { ...DEFAULT_SETTINGS, ...(raw ?? {}) }
 }
 
 export async function setSettings(data: Settings): Promise<void> {
