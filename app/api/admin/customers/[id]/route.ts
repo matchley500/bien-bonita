@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto'
 import { verifySession } from '@/lib/auth'
 import { getCustomers, setCustomers } from '@/lib/db'
 import { hashPassword } from '@/lib/customers'
-import { getTransporter, welcomeEmailHtml, passwordResetEmailHtml } from '@/lib/mailer'
+import { sendMail, welcomeEmailHtml, passwordResetEmailHtml } from '@/lib/mailer'
 
 // Readable charset — no ambiguous characters (0/O, 1/l/I)
 function generateTempPassword(length = 10): string {
@@ -37,7 +37,7 @@ export async function PUT(
     process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD
   ) {
     try {
-      await getTransporter().sendMail({
+      await sendMail({
         from: `"Bien Bonita Nails & Spa" <${process.env.GMAIL_USER}>`,
         to: previous.email,
         subject: `Welcome to Bien Bonita Nails & Spa ✨`,
@@ -71,7 +71,7 @@ export async function POST(
   let emailed = false
   if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
     try {
-      await getTransporter().sendMail({
+      await sendMail({
         from: `"Bien Bonita Nails & Spa" <${process.env.GMAIL_USER}>`,
         to: customer.email,
         subject: 'Your Bien Bonita password has been reset',

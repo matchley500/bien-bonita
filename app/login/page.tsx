@@ -1,18 +1,22 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function LoginPage() {
+function LoginPage() {
   const router = useRouter()
-  const [tab, setTab] = useState<'login' | 'register'>('login')
+  const params = useSearchParams()
+  // Only allow same-site relative redirects
+  const rawNext = params.get('next') ?? ''
+  const nextUrl = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
+  const [tab, setTab] = useState<'login' | 'register'>(params.get('tab') === 'register' ? 'register' : 'login')
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [loginState, setLoginState] = useState<'idle' | 'loading' | 'error'>('idle')
   const [loginError, setLoginError] = useState('')
 
-  const [regForm, setRegForm] = useState({ name: '', email: '', password: '', confirm: '' })
+  const [regForm, setRegForm] = useState({ name: '', email: '', phone: '', password: '', confirm: '' })
   const [regState, setRegState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [regError, setRegError] = useState('')
 
@@ -28,7 +32,7 @@ export default function LoginPage() {
       })
       const data = await res.json()
       if (!res.ok) { setLoginError(data.error ?? 'Login failed.'); setLoginState('error'); return }
-      router.push('/dashboard')
+      router.push(nextUrl)
     } catch {
       setLoginError('Network error. Please try again.')
       setLoginState('error')
@@ -49,7 +53,7 @@ export default function LoginPage() {
       const res = await fetch('/api/customer/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: regForm.name, email: regForm.email, password: regForm.password }),
+        body: JSON.stringify({ name: regForm.name, email: regForm.email, phone: regForm.phone, password: regForm.password }),
       })
       const data = await res.json()
       if (!res.ok) { setRegError(data.error ?? 'Registration failed.'); setRegState('error'); return }
@@ -166,6 +170,16 @@ export default function LoginPage() {
                   />
                 </div>
                 <div>
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Phone Number</label>
+                  <input
+                    type="tel" required
+                    value={regForm.phone}
+                    onChange={e => setRegForm(f => ({ ...f, phone: e.target.value }))}
+                    className="input-field"
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+                <div>
                   <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Password</label>
                   <input
                     type="password" required minLength={8}
@@ -207,5 +221,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPageWrapper() {
+  return (
+    <Suspense>
+      <LoginPage />
+    </Suspense>
   )
 }

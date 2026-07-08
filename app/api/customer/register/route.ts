@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCustomers, setCustomers } from '@/lib/db'
 import { hashPassword } from '@/lib/customers'
-import { getTransporter, accountRequestAdminEmailHtml } from '@/lib/mailer'
+import { sendMail, accountRequestAdminEmailHtml } from '@/lib/mailer'
 
 export async function POST(request: NextRequest) {
-  const { name, email, password } = await request.json()
+  const { name, email, password, phone } = await request.json()
 
   if (!name || !email || !password) {
     return NextResponse.json({ error: 'Name, email, and password are required.' }, { status: 400 })
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
     email: email.toLowerCase().trim(),
     passwordHash: hashPassword(password),
     name: name.trim(),
+    phone: (phone ?? '').trim(),
     createdAt: new Date().toISOString(),
     status: 'pending' as const,
   }
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
   const adminEmail = process.env.GMAIL_USER
   if (adminEmail && process.env.GMAIL_APP_PASSWORD) {
     try {
-      await getTransporter().sendMail({
+      await sendMail({
         from: `"Bien Bonita Website" <${adminEmail}>`,
         to: adminEmail,
         subject: `Account request from ${newCustomer.name} — needs approval`,

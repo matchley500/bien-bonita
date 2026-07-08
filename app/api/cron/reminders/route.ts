@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments } from '@/lib/db'
-import { getTransporter, reminderEmailHtml } from '@/lib/mailer'
+import { sendMail, reminderEmailHtml } from '@/lib/mailer'
 
 // Formats "08:30" → "8:30 AM"
 function fmtTime(val: string) {
@@ -38,12 +38,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ sent: 0, date: tomorrow, message: 'No appointments to remind.' })
   }
 
-  const transporter = getTransporter()
   const results: { name: string; email: string; ok: boolean; error?: string }[] = []
 
   for (const appt of toRemind) {
     try {
-      await transporter.sendMail({
+      await sendMail({
         from: `"Bien Bonita Nails & Spa" <${process.env.GMAIL_USER}>`,
         to: appt.customerEmail,
         subject: `Reminder: Your appointment is tomorrow ✨`,

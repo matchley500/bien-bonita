@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, setAppointments } from '@/lib/db'
-import { getTransporter, rescheduleReceivedEmailHtml, rescheduleAdminEmailHtml } from '@/lib/mailer'
+import { sendMail, rescheduleReceivedEmailHtml, rescheduleAdminEmailHtml } from '@/lib/mailer'
 import { buildAllSlots } from '@/lib/scheduling'
 
 function fmtTime(val: string) {
@@ -57,11 +57,10 @@ export async function POST(request: NextRequest) {
 
   const adminEmail = process.env.GMAIL_USER
   if (adminEmail && process.env.GMAIL_APP_PASSWORD) {
-    const transporter = getTransporter()
 
     // Notify admin
     try {
-      await transporter.sendMail({
+      await sendMail({
         from: `"Bien Bonita Nails & Spa" <${adminEmail}>`,
         to: adminEmail,
         subject: `Reschedule Request from ${appt.customerName}`,
@@ -81,7 +80,7 @@ export async function POST(request: NextRequest) {
     // Confirm to customer
     if (appt.customerEmail) {
       try {
-        await transporter.sendMail({
+        await sendMail({
           from: `"Bien Bonita Nails & Spa" <${adminEmail}>`,
           to: appt.customerEmail,
           subject: `We received your reschedule request ✨`,

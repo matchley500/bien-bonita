@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifySession } from '@/lib/auth'
 import { getAppointments } from '@/lib/db'
-import { getTransporter, reminderEmailHtml } from '@/lib/mailer'
+import { sendMail, reminderEmailHtml } from '@/lib/mailer'
 
 function fmtTime(val: string) {
   const [hStr, mStr] = val.split(':')
@@ -46,8 +46,7 @@ export async function POST() {
   }
 
   try {
-    const transporter = getTransporter()
-    await transporter.sendMail({
+    await sendMail({
       from: `"Bien Bonita Nails & Spa" <${adminEmail}>`,
       to: adminEmail,
       subject: `[TEST] Reminder: Your appointment is tomorrow ✨`,

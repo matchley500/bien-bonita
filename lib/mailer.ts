@@ -11,6 +11,36 @@ export function getTransporter() {
   })
 }
 
+// Rough plain-text rendering of our email HTML for the multipart alternative.
+// HTML-only email scores higher with spam filters.
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<\/(p|div|h[1-6]|li|tr|td)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '$2 ($1)')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&mdash;/g, '—')
+    .replace(/&rsquo;|&lsquo;/g, "'")
+    .replace(/&rdquo;|&ldquo;/g, '"')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/^ +| +$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+export function sendMail(opts: {
+  from: string
+  to: string
+  subject: string
+  html: string
+  attachments?: { filename: string; content: string; contentType: string }[]
+}) {
+  return getTransporter().sendMail({ ...opts, text: htmlToText(opts.html) })
+}
+
 // ─── ICS calendar attachment ──────────────────────────────────────────────────
 
 export function generateICS(opts: {

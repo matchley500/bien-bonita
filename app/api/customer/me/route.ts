@@ -18,6 +18,7 @@ export async function GET() {
   return NextResponse.json({
     name: customer.name,
     email: customer.email,
+    phone: customer.phone ?? '',
     appointments: myAppointments,
   })
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession } from '@/lib/auth'
 import { getAppointments, setAppointments } from '@/lib/db'
-import { getTransporter, confirmationEmailHtml, rejectionEmailHtml, generateICS } from '@/lib/mailer'
+import { sendMail, confirmationEmailHtml, rejectionEmailHtml, generateICS } from '@/lib/mailer'
 
 const SLOT_LABELS: Record<string, string> = {
   '09:30': '9:30 AM', '12:00': '12:00 PM', '14:30': '2:30 PM',
@@ -45,7 +45,7 @@ export async function PUT(
         customerName: merged.customerName,
         serviceNames: merged.serviceNames,
       })
-      await getTransporter().sendMail({
+      await sendMail({
         from: `"Bien Bonita Nails & Spa" <${adminEmail}>`,
         to: merged.customerEmail,
         subject: `You're booked! ✨ Bien Bonita Appointment Confirmed`,
@@ -76,7 +76,7 @@ export async function PUT(
     merged.customerEmail
   ) {
     try {
-      await getTransporter().sendMail({
+      await sendMail({
         from: `"Bien Bonita Nails & Spa" <${adminEmail}>`,
         to: merged.customerEmail,
         subject: `Regarding your Bien Bonita booking request`,

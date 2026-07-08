@@ -101,6 +101,10 @@ export default function BookPage() {
   const [locationType, setLocationType] = useState<'salon' | 'mobile'>('salon')
   const [mobileArea, setMobileArea] = useState('')
 
+  // Logged-in customer — booking requires an account
+  const [customer, setCustomer] = useState<{ name: string; email: string; phone: string } | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
+
   // Calendar state
   const [viewing, setViewing] = useState(() => {
     const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1)
@@ -112,6 +116,20 @@ export default function BookPage() {
   useEffect(() => { fetch('/api/services').then(r => r.json()).then(setServices) }, [])
   useEffect(() => {
     fetch('/api/mobile-charges').then(r => r.json()).then(d => setMobileAreas(d.areas || []))
+  }, [])
+
+  // Check for a logged-in customer and pre-fill their details
+  useEffect(() => {
+    fetch('/api/customer/me')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (d) {
+          setCustomer({ name: d.name, email: d.email, phone: d.phone ?? '' })
+          setForm(f => ({ ...f, name: d.name, email: d.email, phone: d.phone ?? '' }))
+        }
+        setAuthChecked(true)
+      })
+      .catch(() => setAuthChecked(true))
   }, [])
 
   // Scroll to top on every step change — critical on mobile
@@ -173,13 +191,13 @@ export default function BookPage() {
     if (!form.date || !form.time) { alert('Please select a date and time.'); return }
     setSubmitting(true)
 
-    // Save appointment
+    // Save appointment — identity comes from the logged-in account server-side
     const res = await fetch('/api/appointments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         date: form.date, time: form.time,
-        customerName: form.name, customerEmail: form.email, customerPhone: form.phone,
+        customerPhone: form.phone,
         serviceNames: selectedServices.map(s => s.name).join(', '),
         total: grandTotal, notes: form.notes,
         locationType, mobileArea: locationType === 'mobile' ? mobileArea : '', mobileFee,
@@ -191,9 +209,43 @@ export default function BookPage() {
       setSubmitting(false)
       return
     }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(data.error ?? 'Something went wrong. Please try again.')
+      setSubmitting(false)
+      return
+    }
 
     setStep('confirmed')
     setSubmitting(false)
+  }
+
+  /* ── Checking login ── */
+  if (!authChecked) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <p className="font-body tracking-widest uppercase text-sm text-darkbrown/40">Loading…</p>
+      </div>
+    )
+  }
+
+  /* ── Login gate — booking requires an account ── */
+  if (!customer) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-20 text-center">
+        <p className="font-script text-teal-500 text-2xl mb-1">one moment, gorgeous</p>
+        <h1 className="font-display text-4xl text-darkbrown mb-3">Log In to Book</h1>
+        <div className="w-12 h-1 bg-mustard-400 mx-auto mb-6 rounded-full" />
+        <p className="font-body text-sm text-darkbrown/60 leading-relaxed tracking-wide mb-8">
+          Booking at Bien Bonita is exclusive to our clients. Log in to your account to book
+          &mdash; or request an account and we&rsquo;ll welcome you in soon.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link href="/login?next=/book" className="btn-primary">Log In</Link>
+          <Link href="/login?tab=register&next=/book" className="btn-secondary">Create an Account</Link>
+        </div>
+      </div>
+    )
   }
 
   /* ── Confirmed ── */
@@ -210,7 +262,7 @@ export default function BookPage() {
         <h1 className="font-display text-4xl text-darkbrown mb-3">You&apos;re All Set</h1>
         <div className="w-12 h-1 bg-mustard-400 mx-auto mb-6 rounded-full" />
         <p className="text-darkbrown/60 font-body mb-8 leading-loose tracking-wide text-sm">
-          Thank you, {form.name}! We&apos;ve received your booking request and will be in touch to confirm.
+          Thank you, {customer.name}! We&apos;ve received your booking request and will be in touch to confirm.
         </p>
         <div className="card text-left mb-8">
           <h3 className="font-sub font-bold text-darkbrown mb-4 tracking-wide">Booking Summary</h3>
@@ -437,23 +489,23 @@ export default function BookPage() {
                 </div>
               )}
 
-              {/* Contact info */}
+              {/* Booking as + notes */}
               <div className="card space-y-5">
-                <p className="font-script text-teal-500 text-xl mb-0">share your deets</p>
-                <div>
-                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Full Name *</label>
-                  <input type="text" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="input-field" placeholder="Your name" />
+                <p className="font-script text-teal-500 text-xl mb-0">almost done!</p>
+                <div className="bg-parchment/60 rounded-2xl px-4 py-3">
+                  <p className="font-body text-[10px] uppercase tracking-widest text-darkbrown/40 font-bold mb-1">Booking As</p>
+                  <p className="font-sub font-bold text-darkbrown text-sm">{customer.name}</p>
+                  <p className="font-body text-xs text-darkbrown/50 mt-0.5">
+                    ✉ {customer.email}{customer.phone ? ` · 📞 ${customer.phone}` : ''}
+                  </p>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Email *</label>
-                    <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="input-field" placeholder="you@email.com" />
-                  </div>
+                {!customer.phone && (
                   <div>
                     <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Phone *</label>
                     <input type="tel" required value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="input-field" placeholder="(555) 123-4567" />
+                    <p className="font-body text-[11px] text-darkbrown/30 mt-1">We&rsquo;ll save this to your account for next time.</p>
                   </div>
-                </div>
+                )}
                 <div>
                   <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Notes / Special Requests</label>
                   <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="input-field h-28 resize-none" placeholder="Design ideas, or a link to your inspo: ex Pinterest or Instagram!"/>

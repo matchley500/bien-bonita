@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAppointments, setAppointments, getSettings, getBlocked } from '@/lib/db'
-import { getTransporter, bookingRequestEmailHtml, bookingRequestAdminEmailHtml } from '@/lib/mailer'
+import { getAppointments, setAppointments, getBlocked, getCustomers, setCustomers } from '@/lib/db'
+import { verifyCustomerSession } from '@/lib/customers'
+import { sendMail, bookingRequestEmailHtml, bookingRequestAdminEmailHtml } from '@/lib/mailer'
 import { buildAllSlots, isBookableDay, MAX_CLIENTS_PER_DAY } from '@/lib/scheduling'
 
 function fmtTime(val: string) {
@@ -13,12 +14,35 @@ function dayOfWeek(dateStr: string): number {
   return new Date(y, mo - 1, d).getDay()
 }
 
-// Public — customers submit booking requests
+// Customers submit booking requests — requires a logged-in, approved account
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { date, time, customerName, customerEmail, customerPhone, serviceNames, total, notes } = body
+  const sessionEmail = await verifyCustomerSession()
+  if (!sessionEmail) {
+    return NextResponse.json({ error: 'Please log in to book an appointment.' }, { status: 401 })
+  }
 
-  if (!date || !time || !customerName) {
+  const customers = await getCustomers()
+  const customer = customers.find(c => c.email.toLowerCase() === sessionEmail.toLowerCase())
+  if (!customer || customer.status === 'pending') {
+    return NextResponse.json({ error: 'Your account is not active yet.' }, { status: 403 })
+  }
+
+  const body = await request.json()
+  const { date, time, serviceNames, total, notes } = body
+
+  // Identity comes from the account, not the request
+  const customerName = customer.name
+  const customerEmail = customer.email
+  const customerPhone = customer.phone || (body.customerPhone ?? '').trim()
+
+  // Older accounts have no phone on file — save it the first time they book
+  if (!customer.phone && customerPhone) {
+    const idx = customers.findIndex(c => c.id === customer.id)
+    customers[idx] = { ...customer, phone: customerPhone }
+    await setCustomers(customers)
+  }
+
+  if (!date || !time) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
@@ -32,12 +56,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid time slot.' }, { status: 400 })
   }
 
-  // Check if booking is open
-  const settings = await getSettings()
-  if (!settings.bookingOpen) {
-    return NextResponse.json({ error: 'Online booking is currently closed. Please contact us directly.' }, { status: 403 })
-  }
-
+  // Approved accounts may always book — the "booking closed" setting only
+  // gates new clients, and account approval is that gate now.
   const [appointments, blocked] = await Promise.all([getAppointments(), getBlocked()])
 
   // Check if day is explicitly blocked
@@ -84,7 +104,7 @@ export async function POST(request: NextRequest) {
   // Notify customer: request received (not yet confirmed)
   if (customerEmail && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
     try {
-      await getTransporter().sendMail({
+      await sendMail({
         from: `"Bien Bonita Nails & Spa" <${process.env.GMAIL_USER}>`,
         to: customerEmail,
         subject: `We received your booking request ✨`,
@@ -105,7 +125,7 @@ export async function POST(request: NextRequest) {
   const adminEmail = process.env.GMAIL_USER
   if (adminEmail && process.env.GMAIL_APP_PASSWORD) {
     try {
-      await getTransporter().sendMail({
+      await sendMail({
         from: `"Bien Bonita Booking" <${adminEmail}>`,
         to: adminEmail,
         subject: `New booking request from ${customerName} — needs approval`,
