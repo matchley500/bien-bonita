@@ -286,6 +286,40 @@ export function welcomeEmailHtml(opts: {
   `)
 }
 
+// ─── Password reset (to customer — admin triggered) ──────────────────────────
+
+export function passwordResetEmailHtml(opts: {
+  name: string
+  tempPassword: string
+}) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bien-bonita.vercel.app'
+  return emailShell(`
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">password reset</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Your New Password</h2>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
+      Hi ${opts.name}! Your client portal password has been reset. Use this temporary password to log in:
+    </p>
+
+    <div style="background:#F5F0E8;border-radius:16px;padding:20px 24px;margin-bottom:24px;text-align:center;">
+      <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Temporary Password</p>
+      <p style="margin:0;font-size:22px;color:#3D2B1F;font-weight:700;font-family:monospace;letter-spacing:0.08em;">${opts.tempPassword}</p>
+    </div>
+
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${siteUrl}/login"
+         style="display:inline-block;padding:12px 32px;background:#C4622D;border-radius:50px;font-family:sans-serif;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#FFFDF8;text-decoration:none;">
+        Log In Now
+      </a>
+    </div>
+
+    <p style="margin:0;font-size:14px;color:#8B7355;line-height:1.6;">
+      If you didn&rsquo;t request this, reply to this email or reach us at
+      <a href="mailto:bienbonitanailandspa@gmail.com" style="color:#C4622D;text-decoration:none;">bienbonitanailandspa@gmail.com</a>.
+    </p>
+  `)
+}
+
 // ─── Confirmation email (sent after admin approves) ───────────────────────────
 
 export function confirmationEmailHtml(opts: {

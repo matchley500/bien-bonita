@@ -142,7 +142,7 @@ function MiniCalendar({
 
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export default function AdminDashboard() {
-  const [tab, setTab] = useState<'appointments' | 'availability' | 'services' | 'mobile' | 'accounting' | 'settings'>('appointments')
+  const [tab, setTab] = useState<'appointments' | 'availability' | 'services' | 'mobile' | 'accounting' | 'clients' | 'settings'>('appointments')
   const [services, setServices] = useState<Service[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [mobileAreas, setMobileAreas] = useState<MobileArea[]>([])
@@ -189,6 +189,9 @@ export default function AdminDashboard() {
 
   // Test reminder email
   const [testEmailState, setTestEmailState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  // Per-client password reset feedback
+  const [resetStates, setResetStates] = useState<Record<string, 'sending' | 'sent' | 'error'>>({})
 
   // Service form ref for scroll-to
   const svcFormRef = useRef<HTMLFormElement>(null)
@@ -381,6 +384,29 @@ export default function AdminDashboard() {
     await refreshCustomers()
   }
 
+  // ── Client management ──
+  const handleResetPassword = async (id: string) => {
+    if (!confirm('Reset this client\'s password? A new temporary password will be emailed to them.')) return
+    setResetStates(s => ({ ...s, [id]: 'sending' }))
+    try {
+      const res = await fetch(`/api/admin/customers/${id}`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      if (!data.emailed && data.tempPassword) {
+        alert(`The email could not be sent. Temporary password: ${data.tempPassword}\nShare it with the client directly.`)
+      }
+      setResetStates(s => ({ ...s, [id]: 'sent' }))
+    } catch {
+      setResetStates(s => ({ ...s, [id]: 'error' }))
+    }
+    setTimeout(() => setResetStates(s => { const { [id]: _drop, ...rest } = s; return rest }), 4000)
+  }
+  const handleRemoveAccount = async (id: string, name: string) => {
+    if (!confirm(`Remove ${name}'s account? They will no longer be able to log in. Their appointments are not affected.`)) return
+    await fetch(`/api/admin/customers/${id}`, { method: 'DELETE' })
+    await refreshCustomers()
+  }
+
   // ── Settings ──
   const handleSettingsSave = async () => {
     setSavingSettings(true)
@@ -438,6 +464,7 @@ export default function AdminDashboard() {
     { key: 'services', label: 'Services' },
     { key: 'mobile', label: 'Mobile Charges' },
     { key: 'accounting', label: `Accounting${doneAppointments.length ? ` (${doneAppointments.length})` : ''}` },
+    { key: 'clients', label: `Clients${customers.length ? ` (${customers.length})` : ''}${pendingAccounts.length ? ` · ${pendingAccounts.length} pending` : ''}` },
     { key: 'settings', label: 'Settings' },
   ] as const
 
@@ -1230,6 +1257,74 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════ CLIENTS TAB ════════════════ */}
+      {tab === 'clients' && (
+        <div className="max-w-3xl">
+          <div className="mb-6">
+            <h2 className="font-display text-2xl text-darkbrown">Client Accounts</h2>
+            <p className="font-body text-xs text-darkbrown/40 tracking-wide mt-1">
+              Approve requests, reset passwords, or remove portal accounts. Removing an account does not affect appointments.
+            </p>
+          </div>
+
+          {customers.length === 0 ? (
+            <div className="card text-center py-12">
+              <p className="font-body text-darkbrown/40 text-sm tracking-wide">No client accounts yet.</p>
+              <p className="font-body text-xs text-darkbrown/30 mt-1 tracking-wide">Accounts appear here when clients sign up on the portal.</p>
+            </div>
+          ) : (
+            <div className="card p-0 overflow-hidden divide-y divide-sand/20">
+              {[...customers]
+                .sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || a.name.localeCompare(b.name))
+                .map(acct => (
+                <div key={acct.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-sub font-bold text-darkbrown text-sm">{acct.name}</p>
+                      {acct.status === 'pending' ? (
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-mustard-100 text-mustard-700 font-body text-[9px] font-bold uppercase tracking-widest">Pending</span>
+                      ) : (
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-body text-[9px] font-bold uppercase tracking-widest">Active</span>
+                      )}
+                    </div>
+                    <p className="font-body text-xs text-darkbrown/50 mt-0.5">✉ {acct.email}</p>
+                    <p className="font-body text-[11px] text-darkbrown/30 mt-0.5">
+                      Joined {new Date(acct.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    {acct.status === 'pending' && (
+                      <button
+                        onClick={() => handleApproveAccount(acct.id)}
+                        className="text-xs font-body font-bold text-forest-600 hover:text-forest-800 uppercase tracking-wider transition-colors px-3 py-1.5 rounded-lg bg-forest-50 hover:bg-forest-100 border border-forest-300"
+                      >
+                        ✓ Approve
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleResetPassword(acct.id)}
+                      disabled={resetStates[acct.id] === 'sending'}
+                      className="text-xs font-body font-bold text-teal-600 hover:text-teal-800 uppercase tracking-wider transition-colors px-3 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 border border-teal-200 disabled:opacity-50"
+                    >
+                      {resetStates[acct.id] === 'sending' ? 'Resetting…'
+                        : resetStates[acct.id] === 'sent' ? '✓ Emailed'
+                        : resetStates[acct.id] === 'error' ? '✗ Failed'
+                        : '🔑 Reset Password'}
+                    </button>
+                    <button
+                      onClick={() => handleRemoveAccount(acct.id, acct.name)}
+                      className="text-xs font-body font-bold text-red-500 hover:text-red-700 uppercase tracking-wider transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50"
+                    >
+                      ✕ Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
