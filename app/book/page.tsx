@@ -504,12 +504,24 @@ export default function BookPage() {
               {/* Booking as + notes */}
               <div className="card space-y-5">
                 <p className="font-script text-teal-500 text-xl mb-0">almost done!</p>
-                <div className="bg-parchment/60 rounded-2xl px-4 py-3">
-                  <p className="font-body text-[10px] uppercase tracking-widest text-darkbrown/40 font-bold mb-1">Booking As</p>
-                  <p className="font-sub font-bold text-darkbrown text-sm">{customer.name}</p>
-                  <p className="font-body text-xs text-darkbrown/50 mt-0.5">
-                    ✉ {customer.email}{customer.phone ? ` · 📞 ${customer.phone}` : ''}
-                  </p>
+                <div className="bg-parchment/60 rounded-2xl px-4 py-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-body text-[10px] uppercase tracking-widest text-darkbrown/40 font-bold mb-1">Booking As</p>
+                    <p className="font-sub font-bold text-darkbrown text-sm">{customer.name}</p>
+                    <p className="font-body text-xs text-darkbrown/50 mt-0.5">
+                      ✉ {customer.email}{customer.phone ? ` · 📞 ${customer.phone}` : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await fetch('/api/customer/logout', { method: 'POST' })
+                      window.location.reload()
+                    }}
+                    className="font-body text-[10px] font-bold uppercase tracking-widest text-darkbrown/40 hover:text-terracotta-500 transition-colors shrink-0 mt-0.5"
+                  >
+                    Log Out
+                  </button>
                 </div>
                 {!customer.phone && (
                   <div>

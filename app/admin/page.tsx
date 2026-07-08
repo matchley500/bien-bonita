@@ -437,7 +437,7 @@ export default function AdminDashboard() {
   }
 
   // ── Derived ──
-  const apptDateSet = new Set(appointments.map(a => a.date))
+  const apptDateSet = new Set(appointments.filter(a => a.status !== 'rejected').map(a => a.date))
   const blockedDateSet = new Set(blocked.dates)
   const calMarkers: Record<string, 'appt' | 'blocked' | 'both'> = {}
   apptDateSet.forEach(d => { calMarkers[d] = blockedDateSet.has(d) ? 'both' : 'appt' })
@@ -457,6 +457,9 @@ export default function AdminDashboard() {
 
   const pendingAppts = appointments.filter(a => a.status === 'pending_approval')
   const activeAppts = appointments.filter(a => a.status !== 'rejected' && a.status !== 'pending_approval')
+  const now = new Date()
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const upcomingAppts = appointments.filter(a => a.status !== 'rejected' && a.date >= todayStr)
   const pendingAccounts = customers.filter(c => c.status === 'pending')
   const doneAppointments = appointments.filter(a => a.status === 'done')
   const accountingTotal = doneAppointments.reduce((sum, a) => sum + (a.finalPrice ?? a.total), 0)
@@ -806,10 +809,10 @@ export default function AdminDashboard() {
               <div className="card text-center py-16">
                 <p className="font-script text-teal-400 text-2xl mb-2">pick a day</p>
                 <p className="font-body text-darkbrown/40 text-sm tracking-wide">Select a date on the calendar to view appointments.</p>
-                {appointments.length > 0 && (
+                {upcomingAppts.length > 0 && (
                   <div className="mt-8 text-left max-h-96 overflow-y-auto space-y-1">
                     <p className="font-body text-xs uppercase tracking-widest text-darkbrown/30 mb-3">All Upcoming</p>
-                    {[...appointments]
+                    {[...upcomingAppts]
                       .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
                       .map(appt => (
                         <button key={appt.id} onClick={() => setSelectedDate(appt.date)}
