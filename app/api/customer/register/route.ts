@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCustomers, setCustomers } from '@/lib/db'
 import { hashPassword } from '@/lib/customers'
-import { getTransporter, newAccountAdminEmailHtml } from '@/lib/mailer'
+import { getTransporter, accountRequestAdminEmailHtml } from '@/lib/mailer'
 
 export async function POST(request: NextRequest) {
   const { name, email, password } = await request.json()
@@ -25,27 +25,28 @@ export async function POST(request: NextRequest) {
     passwordHash: hashPassword(password),
     name: name.trim(),
     createdAt: new Date().toISOString(),
+    status: 'pending' as const,
   }
 
   customers.push(newCustomer)
   await setCustomers(customers)
 
-  // Notify admin of the new account (non-fatal if email fails)
+  // Notify admin that an account was requested (non-fatal if email fails)
   const adminEmail = process.env.GMAIL_USER
   if (adminEmail && process.env.GMAIL_APP_PASSWORD) {
     try {
       await getTransporter().sendMail({
         from: `"Bien Bonita Website" <${adminEmail}>`,
         to: adminEmail,
-        subject: `New client account: ${newCustomer.name}`,
-        html: newAccountAdminEmailHtml({
+        subject: `Account request from ${newCustomer.name} — needs approval`,
+        html: accountRequestAdminEmailHtml({
           name: newCustomer.name,
           email: newCustomer.email,
           createdAt: newCustomer.createdAt,
         }),
       })
-    } catch (err) { console.error('New account admin email failed:', err) }
+    } catch (err) { console.error('Account request admin email failed:', err) }
   }
 
-  return NextResponse.json({ ok: true }, { status: 201 })
+  return NextResponse.json({ ok: true, pending: true }, { status: 201 })
 }

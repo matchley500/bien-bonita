@@ -25,6 +25,7 @@ interface Appointment {
   rescheduleRequest?: RescheduleRequest
 }
 interface MobileArea { id: string; label: string; fee: number; travelMinutes?: number }
+interface CustomerAccount { id: string; email: string; name: string; createdAt: string; status?: 'pending' | 'active' }
 interface BlockedData {
   dates: string[]
   slots: { date: string; time: string }[]
@@ -145,6 +146,7 @@ export default function AdminDashboard() {
   const [services, setServices] = useState<Service[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [mobileAreas, setMobileAreas] = useState<MobileArea[]>([])
+  const [customers, setCustomers] = useState<CustomerAccount[]>([])
   const [blocked, setBlocked] = useState<BlockedData>({ dates: [], slots: [], weekdays: [] })
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [selectedDate, setSelectedDate] = useState('')
@@ -203,7 +205,8 @@ export default function AdminDashboard() {
         fetch('/api/admin/mobile-charges').then(r => r.json()),
         fetch('/api/admin/blocked').then(r => r.json()),
         fetch('/api/admin/settings').then(r => r.json()),
-      ]).then(([svcs, apts, mob, blk, settings]) => {
+        fetch('/api/admin/customers').then(r => r.json()),
+      ]).then(([svcs, apts, mob, blk, settings, custs]) => {
         setServices(svcs)
         setAppointments(apts)
         const areas = mob.areas || []
@@ -211,6 +214,7 @@ export default function AdminDashboard() {
         setMobileEdits(areas.map((a: MobileArea) => ({ ...a })))
         setBlocked(blk)
         setBookingOpen(settings.bookingOpen ?? false)
+        setCustomers(Array.isArray(custs) ? custs : [])
       })
     })
   }, [router])
@@ -358,6 +362,25 @@ export default function AdminDashboard() {
     await refreshAppointments()
   }
 
+  // ── Approve / Deny account requests ──
+  const refreshCustomers = async () => {
+    const custs = await fetch('/api/admin/customers').then(r => r.json())
+    setCustomers(Array.isArray(custs) ? custs : [])
+  }
+  const handleApproveAccount = async (id: string) => {
+    await fetch(`/api/admin/customers/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'active' }),
+    })
+    await refreshCustomers()
+  }
+  const handleDenyAccount = async (id: string) => {
+    if (!confirm('Deny this account request? The account will be removed (no email is sent).')) return
+    await fetch(`/api/admin/customers/${id}`, { method: 'DELETE' })
+    await refreshCustomers()
+  }
+
   // ── Settings ──
   const handleSettingsSave = async () => {
     setSavingSettings(true)
@@ -405,11 +428,12 @@ export default function AdminDashboard() {
 
   const pendingAppts = appointments.filter(a => a.status === 'pending_approval')
   const activeAppts = appointments.filter(a => a.status !== 'rejected' && a.status !== 'pending_approval')
+  const pendingAccounts = customers.filter(c => c.status === 'pending')
   const doneAppointments = appointments.filter(a => a.status === 'done')
   const accountingTotal = doneAppointments.reduce((sum, a) => sum + (a.finalPrice ?? a.total), 0)
 
   const tabConfig = [
-    { key: 'appointments', label: `Appointments${activeAppts.length ? ` (${activeAppts.length})` : ''}${pendingAppts.length ? ` · ${pendingAppts.length} pending` : ''}` },
+    { key: 'appointments', label: `Appointments${activeAppts.length ? ` (${activeAppts.length})` : ''}${pendingAppts.length + pendingAccounts.length ? ` · ${pendingAppts.length + pendingAccounts.length} pending` : ''}` },
     { key: 'availability', label: 'Availability' },
     { key: 'services', label: 'Services' },
     { key: 'mobile', label: 'Mobile Charges' },
@@ -466,6 +490,47 @@ export default function AdminDashboard() {
       {/* ════════════════ APPOINTMENTS TAB ════════════════ */}
       {tab === 'appointments' && (
         <>
+        {/* Pending account requests */}
+        {pendingAccounts.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="inline-flex items-center gap-2 bg-teal-100 text-teal-700 font-body text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-teal-500 inline-block animate-pulse" />
+                {pendingAccounts.length} Account Request{pendingAccounts.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {pendingAccounts.map(acct => (
+                <div key={acct.id} className="card border-teal-200 bg-teal-50/40">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-sub font-bold text-darkbrown text-base">{acct.name}</p>
+                      <p className="font-body text-xs text-darkbrown/50 mt-0.5">✉ {acct.email}</p>
+                      <p className="font-body text-[11px] text-darkbrown/40 mt-0.5">
+                        Requested {new Date(acct.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => handleApproveAccount(acct.id)}
+                        className="text-xs font-body font-bold text-forest-600 hover:text-forest-800 uppercase tracking-wider transition-colors px-3 py-1.5 rounded-lg bg-forest-50 hover:bg-forest-100 border border-forest-300"
+                      >
+                        ✓ Approve
+                      </button>
+                      <button
+                        onClick={() => handleDenyAccount(acct.id)}
+                        className="text-xs font-body font-bold text-red-500 hover:text-red-700 uppercase tracking-wider transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50"
+                      >
+                        ✕ Deny
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-sand/40 mt-8 mb-0" />
+          </div>
+        )}
         {/* Pending approval section */}
         {pendingAppts.length > 0 && (
           <div className="mb-8">

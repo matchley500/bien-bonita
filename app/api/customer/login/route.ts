@@ -16,6 +16,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 })
   }
 
+  // Accounts created before the approval flow have no status — treat as active
+  if (customer.status === 'pending') {
+    return NextResponse.json(
+      { error: 'Your account is awaiting approval. You\'ll receive a welcome email once it\'s ready.' },
+      { status: 403 }
+    )
+  }
+
   const token = await createCustomerSession(customer.email)
 
   const response = NextResponse.json({ ok: true, name: customer.name, email: customer.email })

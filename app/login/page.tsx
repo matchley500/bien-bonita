@@ -135,13 +135,13 @@ export default function LoginPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <p className="font-script text-teal-500 text-2xl">account created!</p>
+                <p className="font-script text-teal-500 text-2xl">request sent!</p>
                 <p className="font-body text-sm text-darkbrown/60 tracking-wide">
-                  Your account is ready. Log in to view your appointments.
+                  Your account request has been submitted for approval. You&rsquo;ll receive a welcome email once it&rsquo;s ready &mdash; then you can log in.
                 </p>
-                <button type="button" onClick={() => setTab('login')} className="btn-primary">
-                  Log In Now
-                </button>
+                <Link href="/" className="btn-primary inline-block">
+                  Back to Home
+                </Link>
               </div>
             ) : (
               <>

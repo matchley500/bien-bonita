@@ -64,6 +64,8 @@ export interface Customer {
   passwordHash: string
   name: string
   createdAt: string
+  // Accounts created before the approval flow have no status — treat as active
+  status?: 'pending' | 'active'
 }
 
 export interface Settings {

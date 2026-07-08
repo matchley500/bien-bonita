@@ -214,9 +214,9 @@ export function bookingRequestAdminEmailHtml(opts: {
   `)
 }
 
-// ─── New customer account notification (to admin) ────────────────────────────
+// ─── Account creation request (to admin — needs approval) ────────────────────
 
-export function newAccountAdminEmailHtml(opts: {
+export function accountRequestAdminEmailHtml(opts: {
   name: string
   email: string
   createdAt: string
@@ -226,23 +226,62 @@ export function newAccountAdminEmailHtml(opts: {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit',
   })
+  const adminUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bien-bonita.vercel.app'
   return emailShell(`
-    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">new client account</p>
-    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Someone Just Signed Up</h2>
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">account request</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Approval Needed</h2>
 
     <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
-      A new account was created on the client portal.
+      <strong>${opts.name}</strong> has requested a client portal account. Log in to the dashboard to approve or deny it. They can&rsquo;t sign in until you approve.
     </p>
 
     <div style="background:#F5F0E8;border-radius:16px;padding:20px 24px;margin-bottom:24px;">
-      <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Account Details</p>
+      <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Requested Account</p>
       <p style="margin:0 0 2px;font-size:16px;color:#3D2B1F;font-weight:600;">${opts.name}</p>
       <p style="margin:0 0 2px;font-size:14px;color:#3D2B1F;">${opts.email}</p>
-      <p style="margin:8px 0 0;font-size:13px;color:#8B7355;">Created ${formatted} (Arizona time)</p>
+      <p style="margin:8px 0 0;font-size:13px;color:#8B7355;">Requested ${formatted} (Arizona time)</p>
     </div>
 
-    <p style="margin:0;font-size:13px;color:#B0A090;line-height:1.5;">
-      This account can view its appointment history and request reschedules. No action is needed unless you don&rsquo;t recognize this person.
+    <div style="text-align:center;margin-bottom:8px;">
+      <a href="${adminUrl}/admin"
+         style="display:inline-block;padding:12px 32px;background:#C4622D;border-radius:50px;font-family:sans-serif;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#FFFDF8;text-decoration:none;">
+        Review in Dashboard
+      </a>
+    </div>
+  `)
+}
+
+// ─── Welcome email (to customer — sent after admin approves account) ──────────
+
+export function welcomeEmailHtml(opts: {
+  name: string
+}) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bien-bonita.vercel.app'
+  return emailShell(`
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">bienvenida!</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Welcome to Bien Bonita</h2>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
+      Hi ${opts.name}! Your account has been approved &mdash; welcome to our exclusive salon family. We&rsquo;re so happy to have you.
+    </p>
+
+    <div style="background:#F5F0E8;border-radius:16px;padding:20px 24px;margin-bottom:24px;">
+      <p style="margin:0 0 8px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Your Client Portal</p>
+      <p style="margin:0 0 4px;font-size:14px;color:#5C4A3A;line-height:1.6;">✨ View your upcoming &amp; past appointments</p>
+      <p style="margin:0 0 4px;font-size:14px;color:#5C4A3A;line-height:1.6;">🔄 Request reschedules in a couple of taps</p>
+      <p style="margin:0;font-size:14px;color:#5C4A3A;line-height:1.6;">💅 Stay connected with your salon</p>
+    </div>
+
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${siteUrl}/login"
+         style="display:inline-block;padding:12px 32px;background:#C4622D;border-radius:50px;font-family:sans-serif;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#FFFDF8;text-decoration:none;">
+        Log In to Your Portal
+      </a>
+    </div>
+
+    <p style="margin:0;font-size:14px;color:#8B7355;line-height:1.6;">
+      Questions? Reply to this email or reach us at
+      <a href="mailto:bienbonitanailandspa@gmail.com" style="color:#C4622D;text-decoration:none;">bienbonitanailandspa@gmail.com</a>. See you soon!
     </p>
   `)
 }
