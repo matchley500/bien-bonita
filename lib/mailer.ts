@@ -214,6 +214,39 @@ export function bookingRequestAdminEmailHtml(opts: {
   `)
 }
 
+// ─── New customer account notification (to admin) ────────────────────────────
+
+export function newAccountAdminEmailHtml(opts: {
+  name: string
+  email: string
+  createdAt: string
+}) {
+  const formatted = new Date(opts.createdAt).toLocaleString('en-US', {
+    timeZone: 'America/Phoenix',
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  })
+  return emailShell(`
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">new client account</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Someone Just Signed Up</h2>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
+      A new account was created on the client portal.
+    </p>
+
+    <div style="background:#F5F0E8;border-radius:16px;padding:20px 24px;margin-bottom:24px;">
+      <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Account Details</p>
+      <p style="margin:0 0 2px;font-size:16px;color:#3D2B1F;font-weight:600;">${opts.name}</p>
+      <p style="margin:0 0 2px;font-size:14px;color:#3D2B1F;">${opts.email}</p>
+      <p style="margin:8px 0 0;font-size:13px;color:#8B7355;">Created ${formatted} (Arizona time)</p>
+    </div>
+
+    <p style="margin:0;font-size:13px;color:#B0A090;line-height:1.5;">
+      This account can view its appointment history and request reschedules. No action is needed unless you don&rsquo;t recognize this person.
+    </p>
+  `)
+}
+
 // ─── Confirmation email (sent after admin approves) ───────────────────────────
 
 export function confirmationEmailHtml(opts: {
