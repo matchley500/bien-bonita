@@ -460,12 +460,13 @@ export default function AdminDashboard() {
   const now = new Date()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const upcomingAppts = appointments.filter(a => a.status !== 'rejected' && a.date >= todayStr)
+  const upcomingActiveCount = activeAppts.filter(a => a.date >= todayStr).length
   const pendingAccounts = customers.filter(c => c.status === 'pending')
   const doneAppointments = appointments.filter(a => a.status === 'done')
   const accountingTotal = doneAppointments.reduce((sum, a) => sum + (a.finalPrice ?? a.total), 0)
 
   const tabConfig = [
-    { key: 'appointments', label: `Appointments${activeAppts.length ? ` (${activeAppts.length})` : ''}${pendingAppts.length + pendingAccounts.length ? ` · ${pendingAppts.length + pendingAccounts.length} pending` : ''}` },
+    { key: 'appointments', label: `Appointments${upcomingActiveCount ? ` (${upcomingActiveCount})` : ''}${pendingAppts.length + pendingAccounts.length ? ` · ${pendingAppts.length + pendingAccounts.length} pending` : ''}` },
     { key: 'availability', label: 'Availability' },
     { key: 'services', label: 'Services' },
     { key: 'mobile', label: 'Mobile Charges' },
