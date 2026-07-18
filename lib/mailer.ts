@@ -405,6 +405,52 @@ export function confirmationEmailHtml(opts: {
   `)
 }
 
+// ─── Appointment updated (admin edited — customer notified) ───────────────────
+
+export function appointmentUpdatedEmailHtml(opts: {
+  customerName: string
+  customerEmail?: string
+  date: string
+  time: string
+  serviceNames: string
+  locationType?: string
+  mobileArea?: string
+  total?: number
+  salonAddress?: string
+  address?: string
+}) {
+  const locationBlock = opts.locationType === 'mobile' && opts.address
+    ? `<div style="background:#F5F0E8;border-radius:16px;padding:16px 24px;margin-bottom:24px;">
+        <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">We&rsquo;re Coming to You</p>
+        <p style="margin:0;font-size:15px;color:#3D2B1F;">📍 ${opts.address}</p>
+      </div>`
+    : opts.salonAddress
+    ? `<div style="background:#F5F0E8;border-radius:16px;padding:16px 24px;margin-bottom:24px;">
+        <p style="margin:0 0 4px;font-size:11px;color:#8B7355;text-transform:uppercase;letter-spacing:0.12em;font-family:sans-serif;font-weight:700;">Salon Address</p>
+        <p style="margin:0;font-size:15px;color:#3D2B1F;">📍 ${opts.salonAddress}</p>
+      </div>`
+    : ''
+  return emailShell(`
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">heads up!</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Your Appointment Was Updated</h2>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
+      Hi ${opts.customerName}! We&rsquo;ve made an update to your appointment. Here are your new confirmed details &mdash; an updated calendar invite is attached to this email.
+    </p>
+
+    ${appointmentCard(opts)}
+    ${locationBlock}
+
+    <p style="margin:0 0 16px;font-size:14px;color:#8B7355;line-height:1.6;">
+      If this new time doesn&rsquo;t work for you, reply to this email or reach us at
+      <a href="mailto:bienbonitanailandspa@gmail.com" style="color:#C4622D;text-decoration:none;">bienbonitanailandspa@gmail.com</a> and we&rsquo;ll figure it out together.
+    </p>
+    <p style="margin:0;font-size:14px;color:#8B7355;line-height:1.6;">
+      We appreciate you and can&rsquo;t wait to see you!
+    </p>
+  `)
+}
+
 // ─── Rejection email (sent after admin rejects) ───────────────────────────────
 
 export function rejectionEmailHtml(opts: {

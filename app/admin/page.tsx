@@ -296,7 +296,7 @@ export default function AdminDashboard() {
       notes: appt.notes,
     })
   }
-  const handleApptEditSave = async () => {
+  const handleApptEditSave = async (notify = false) => {
     if (!editModal) return
     setSavingEdit(true)
     await fetch(`/api/admin/appointments/${editModal.id}`, {
@@ -312,6 +312,7 @@ export default function AdminDashboard() {
         total: Number(editForm.total) || 0,
         notes: editForm.notes,
         rescheduleRequest: null, // clear any pending request
+        notifyCustomer: notify,
       }),
     })
     setEditModal(null)
@@ -1571,15 +1572,28 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setEditModal(null)} className="btn-secondary flex-1">Cancel</button>
+              <div className="space-y-3 pt-2">
+                <div className="flex gap-3">
+                  <button onClick={() => setEditModal(null)} className="btn-secondary flex-1">Cancel</button>
+                  <button
+                    onClick={() => handleApptEditSave(false)}
+                    disabled={savingEdit || !editForm.date || !editForm.time || !editForm.customerName}
+                    className="btn-primary flex-1 disabled:opacity-50"
+                  >
+                    {savingEdit ? 'Saving…' : 'Save Changes'}
+                  </button>
+                </div>
                 <button
-                  onClick={handleApptEditSave}
-                  disabled={savingEdit || !editForm.date || !editForm.time || !editForm.customerName}
-                  className="btn-primary flex-1 disabled:opacity-50"
+                  onClick={() => handleApptEditSave(true)}
+                  disabled={savingEdit || !editForm.date || !editForm.time || !editForm.customerName || !editForm.customerEmail}
+                  className="w-full py-3 rounded-full border-2 border-teal-500 bg-teal-50 text-teal-700 font-body text-xs font-bold uppercase tracking-widest hover:bg-teal-100 transition-colors disabled:opacity-50"
+                  title={!editForm.customerEmail ? 'This appointment has no email on file' : 'Save and email the client their updated confirmed details'}
                 >
-                  {savingEdit ? 'Saving…' : 'Save Changes'}
+                  {savingEdit ? 'Saving…' : '✉ Save & Notify Client'}
                 </button>
+                {!editForm.customerEmail && (
+                  <p className="text-center font-body text-[11px] text-darkbrown/40">No email on file for this appointment — notify is unavailable.</p>
+                )}
               </div>
             </div>
           </div>
