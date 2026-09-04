@@ -1,7 +1,7 @@
 // ─── Booking constraints ───────────────────────────────────────────────────────
 
-// Only bookable Tuesday (2), Wednesday (3), Thursday (4)
-export const BOOKABLE_DAYS = new Set([2, 3, 4])
+// Which days are bookable is controlled by the admin via the Availability tab
+// (recurring weekday blocks) — no days are hardcoded off here.
 export const MAX_CLIENTS_PER_DAY = 3
 
 // Fixed appointment slots: 9:30 AM, 12:00 PM, 2:30 PM
@@ -9,10 +9,6 @@ const FIXED_SLOTS = ['09:30', '12:00', '14:30']
 
 export function buildAllSlots(): string[] {
   return [...FIXED_SLOTS]
-}
-
-export function isBookableDay(dow: number): boolean {
-  return BOOKABLE_DAYS.has(dow)
 }
 
 // ─── Slot blocking ─────────────────────────────────────────────────────────────

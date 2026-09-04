@@ -405,6 +405,40 @@ export function confirmationEmailHtml(opts: {
   `)
 }
 
+// ─── Announcement broadcast (admin-drafted, sent to all clients) ──────────────
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+export function announcementEmailHtml(opts: {
+  name: string
+  message: string
+}) {
+  const body = escapeHtml(opts.message).replace(/\n/g, '<br>')
+  return emailShell(`
+    <p style="margin:0 0 6px;font-size:22px;color:#C4622D;font-style:italic;">a note from us</p>
+    <h2 style="margin:0 0 24px;font-size:20px;color:#3D2B1F;font-weight:600;">Salon Announcement</h2>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#5C4A3A;line-height:1.6;">
+      Hi ${opts.name}!
+    </p>
+
+    <div style="background:#F5F0E8;border-radius:16px;padding:20px 24px;margin-bottom:24px;">
+      <p style="margin:0;font-size:15px;color:#3D2B1F;line-height:1.7;">${body}</p>
+    </div>
+
+    <p style="margin:0;font-size:14px;color:#8B7355;line-height:1.6;">
+      Questions? Reply to this email or reach us at
+      <a href="mailto:bienbonitanailandspa@gmail.com" style="color:#C4622D;text-decoration:none;">bienbonitanailandspa@gmail.com</a>. With love, Bien Bonita Nails &amp; Spa 💅
+    </p>
+  `)
+}
+
 // ─── Appointment updated (admin edited — customer notified) ───────────────────
 
 export function appointmentUpdatedEmailHtml(opts: {

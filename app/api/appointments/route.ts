@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, setAppointments, getBlocked, getCustomers, setCustomers } from '@/lib/db'
 import { verifyCustomerSession } from '@/lib/customers'
 import { sendMail, bookingRequestEmailHtml, bookingRequestAdminEmailHtml } from '@/lib/mailer'
-import { buildAllSlots, isBookableDay, MAX_CLIENTS_PER_DAY } from '@/lib/scheduling'
+import { buildAllSlots, MAX_CLIENTS_PER_DAY } from '@/lib/scheduling'
 
 function fmtTime(val: string) {
   const slots: Record<string, string> = { '09:30': '9:30 AM', '12:00': '12:00 PM', '14:30': '2:30 PM' }
@@ -49,11 +49,6 @@ export async function POST(request: NextRequest) {
   const address = (body.address ?? '').trim()
   if (body.locationType === 'mobile' && !address) {
     return NextResponse.json({ error: 'Please provide your address for mobile service.' }, { status: 400 })
-  }
-
-  // Validate day of week (Tue-Thu only)
-  if (!isBookableDay(dayOfWeek(date))) {
-    return NextResponse.json({ error: 'Bookings are only available Tuesday through Thursday.' }, { status: 400 })
   }
 
   // Validate time slot

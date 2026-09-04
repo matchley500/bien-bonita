@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, getBlocked, getMobileCharges } from '@/lib/db'
-import { buildAllSlots, expandWithBuffer, filterPastSlots, isBookableDay } from '@/lib/scheduling'
+import { buildAllSlots, expandWithBuffer, filterPastSlots } from '@/lib/scheduling'
 
 function dayOfWeek(dateStr: string): number {
   const [y, mo, d] = dateStr.split('-').map(Number)
@@ -11,11 +11,6 @@ function dayOfWeek(dateStr: string): number {
 export async function GET(request: NextRequest) {
   const date = request.nextUrl.searchParams.get('date')
   if (!date) return NextResponse.json({ available: [] })
-
-  // Only Tue-Thu are bookable
-  if (!isBookableDay(dayOfWeek(date))) {
-    return NextResponse.json({ available: [] })
-  }
 
   const [appointments, blocked, charges] = await Promise.all([
     getAppointments(), getBlocked(), getMobileCharges(),

@@ -33,7 +33,7 @@ const categoryColors: Record<string, string> = {
 const categoryOrder = ['manicure', 'pedicure', 'gel', 'extensions', 'removals', 'designs', 'addons']
 const GEL_UPGRADE_PRICE = 15
 
-// Fixed 3-slot system: 9:30 AM, 12:00 PM, 2:30 PM (Tue–Thu only)
+// Fixed 3-slot system: 9:30 AM, 12:00 PM, 2:30 PM
 const ALL_TIME_SLOTS = [
   { value: '09:30', label: '9:30 AM' },
   { value: '12:00', label: '12:00 PM' },

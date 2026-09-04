@@ -44,7 +44,7 @@ const EMPTY_SVC = { name: '', description: '', price: '', duration: '', category
 const EMPTY_APPT = { date: '', time: '', customerName: '', customerEmail: '', customerPhone: '', serviceNames: '', total: '', notes: '' }
 type EditForm = { date: string; time: string; customerName: string; customerEmail: string; customerPhone: string; serviceNames: string; total: string; notes: string }
 
-// Fixed 3-slot system (Tue-Thu, 9:30 AM / 12:00 PM / 2:30 PM)
+// Fixed 3-slot system (9:30 AM / 12:00 PM / 2:30 PM)
 const TIME_SLOTS = [
   { value: '09:30', label: '9:30 AM' },
   { value: '12:00', label: '12:00 PM' },
@@ -194,6 +194,12 @@ export default function AdminDashboard() {
 
   // Per-client password reset feedback
   const [resetStates, setResetStates] = useState<Record<string, 'sending' | 'sent' | 'error'>>({})
+
+  // Announcement broadcast
+  const [broadcastSubject, setBroadcastSubject] = useState('')
+  const [broadcastMessage, setBroadcastMessage] = useState('')
+  const [broadcastState, setBroadcastState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [broadcastInfo, setBroadcastInfo] = useState('')
 
   // Service form ref for scroll-to
   const svcFormRef = useRef<HTMLFormElement>(null)
@@ -409,6 +415,38 @@ export default function AdminDashboard() {
     if (!confirm(`Remove ${name}'s account? They will no longer be able to log in. Their appointments are not affected.`)) return
     await fetch(`/api/admin/customers/${id}`, { method: 'DELETE' })
     await refreshCustomers()
+  }
+
+  // ── Announcement broadcast ──
+  const handleBroadcast = async () => {
+    const recipientCount = customers.filter(c => c.status !== 'pending').length
+    if (!confirm(`Send this announcement to all ${recipientCount} active client${recipientCount === 1 ? '' : 's'}? This cannot be undone.`)) return
+    setBroadcastState('sending')
+    setBroadcastInfo('')
+    try {
+      const res = await fetch('/api/admin/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: broadcastSubject, message: broadcastMessage }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setBroadcastState('error')
+        setBroadcastInfo(data.error ?? 'Something went wrong.')
+        return
+      }
+      setBroadcastState('sent')
+      setBroadcastInfo(
+        data.failed?.length
+          ? `Sent to ${data.sent} client${data.sent === 1 ? '' : 's'} — failed for: ${data.failed.join(', ')}`
+          : `Sent to ${data.sent} client${data.sent === 1 ? '' : 's'}!`
+      )
+      setBroadcastSubject('')
+      setBroadcastMessage('')
+    } catch {
+      setBroadcastState('error')
+      setBroadcastInfo('Network error. Please try again.')
+    }
   }
 
   // ── Settings ──
@@ -1285,6 +1323,50 @@ export default function AdminDashboard() {
             </p>
           </div>
 
+          {/* Announcement composer */}
+          <div className="card mb-8 space-y-4">
+            <div>
+              <p className="font-script text-teal-500 text-xl mb-0">spread the word</p>
+              <h3 className="font-display text-xl text-darkbrown">Announce to All Clients</h3>
+              <p className="font-body text-xs text-darkbrown/40 tracking-wide mt-1">
+                Draft a message and email it to every active client — perfect for hour changes, holiday closures, or news.
+              </p>
+            </div>
+            <div>
+              <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Subject *</label>
+              <input
+                type="text"
+                value={broadcastSubject}
+                onChange={e => setBroadcastSubject(e.target.value)}
+                className="input-field"
+                placeholder="e.g. Our hours are changing!"
+              />
+            </div>
+            <div>
+              <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Message *</label>
+              <textarea
+                value={broadcastMessage}
+                onChange={e => setBroadcastMessage(e.target.value)}
+                className="input-field h-36 resize-none"
+                placeholder={"Write your announcement here…\n\nLine breaks are kept, and every client is greeted by name automatically."}
+              />
+            </div>
+            <div className="flex items-center gap-4 flex-wrap">
+              <button
+                onClick={handleBroadcast}
+                disabled={broadcastState === 'sending' || !broadcastSubject.trim() || !broadcastMessage.trim()}
+                className="btn-primary disabled:opacity-40"
+              >
+                {broadcastState === 'sending' ? 'Sending…' : `✉ Send to ${customers.filter(c => c.status !== 'pending').length} Client${customers.filter(c => c.status !== 'pending').length === 1 ? '' : 's'}`}
+              </button>
+              {broadcastInfo && (
+                <span className={`text-xs font-body font-bold tracking-wide ${broadcastState === 'sent' ? 'text-forest-600' : 'text-red-500'}`}>
+                  {broadcastState === 'sent' ? '✓ ' : '✗ '}{broadcastInfo}
+                </span>
+              )}
+            </div>
+          </div>
+
           {customers.length === 0 ? (
             <div className="card text-center py-12">
               <p className="font-body text-darkbrown/40 text-sm tracking-wide">No client accounts yet.</p>
@@ -1401,14 +1483,14 @@ export default function AdminDashboard() {
           <div className="card space-y-3">
             <p className="font-sub font-bold text-darkbrown text-lg">Booking Schedule</p>
             <div className="space-y-2 font-body text-sm text-darkbrown/60">
-              <p>📅 <strong>Days:</strong> Tuesday, Wednesday, Thursday</p>
+              <p>📅 <strong>Days:</strong> Every day is bookable unless you block it — use the Availability tab&rsquo;s recurring day toggles to set which days you work</p>
               <p>⏰ <strong>Slots:</strong> 9:30 AM · 12:00 PM · 2:30 PM</p>
               <p>👥 <strong>Max clients per day:</strong> 3</p>
               <p>🕐 <strong>Appointment duration:</strong> 2 hours + 30 min grace</p>
               <p>🚗 <strong>Mobile travel:</strong> Added per area (configure in Mobile Charges tab)</p>
             </div>
             <p className="font-body text-xs text-darkbrown/30 tracking-wide">
-              These settings are built into the scheduling system. Contact your developer to change them.
+              Slot times and daily limits are built into the scheduling system. Contact your developer to change them.
             </p>
           </div>
         </div>

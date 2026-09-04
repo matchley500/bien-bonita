@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, getBlocked, getMobileCharges } from '@/lib/db'
-import { buildAllSlots, expandWithBuffer, filterPastSlots, isBookableDay, MAX_CLIENTS_PER_DAY } from '@/lib/scheduling'
+import { buildAllSlots, expandWithBuffer, filterPastSlots, MAX_CLIENTS_PER_DAY } from '@/lib/scheduling'
 
 // Public — returns YYYY-MM-DD strings in a month that have no bookable slots
 export async function GET(request: NextRequest) {
@@ -22,12 +22,6 @@ export async function GET(request: NextRequest) {
   for (let d = 1; d <= daysInMonth; d++) {
     const date = `${year}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     const dow = new Date(year, mo - 1, d).getDay()
-
-    // Non-bookable day of week (only Tue-Thu)
-    if (!isBookableDay(dow)) {
-      unavailable.push(date)
-      continue
-    }
 
     // Blocked by specific date or recurring weekday
     if (blocked.dates.includes(date) || blocked.weekdays.includes(dow)) {
