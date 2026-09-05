@@ -30,6 +30,7 @@ export default function Header() {
           <Link href="/" className="font-body text-xs tracking-widest uppercase text-darkbrown/60 hover:text-terracotta-500 transition-colors">Home</Link>
           <Link href="/#about" className="font-body text-xs tracking-widest uppercase text-darkbrown/60 hover:text-terracotta-500 transition-colors">About</Link>
           <Link href="/dashboard" className="font-body text-xs tracking-widest uppercase text-darkbrown/60 hover:text-terracotta-500 transition-colors">My Appointments</Link>
+          <Link href="/admin" className="font-body text-xs tracking-widest uppercase text-darkbrown/35 hover:text-terracotta-500 transition-colors">Admin</Link>
           <Link href="/book" className="btn-primary !py-2 !px-6 text-xs">Book Now</Link>
         </nav>
 
