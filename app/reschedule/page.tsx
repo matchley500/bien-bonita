@@ -4,12 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import BookingCalendar from '@/components/BookingCalendar'
-
-const ALL_TIME_SLOTS = [
-  { value: '09:30', label: '9:30 AM' },
-  { value: '12:00', label: '12:00 PM' },
-  { value: '14:30', label: '2:30 PM' },
-]
+import { formatSlotLabel } from '@/lib/scheduling'
 
 function ReschedulePage() {
   const params = useSearchParams()
@@ -145,7 +140,7 @@ function ReschedulePage() {
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {availableTimes.map(slot => {
-                  const label = ALL_TIME_SLOTS.find(s => s.value === slot)?.label ?? slot
+                  const label = formatSlotLabel(slot)
                   return (
                     <button
                       key={slot} type="button"

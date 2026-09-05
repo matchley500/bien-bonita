@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import BookingCalendar, { toDateKey } from '@/components/BookingCalendar'
+import { formatSlotLabel } from '@/lib/scheduling'
 
 interface Service {
   id: string
@@ -33,16 +34,9 @@ const categoryColors: Record<string, string> = {
 const categoryOrder = ['manicure', 'pedicure', 'gel', 'extensions', 'removals', 'designs', 'addons']
 const GEL_UPGRADE_PRICE = 15
 
-// Fixed 3-slot system: 9:30 AM, 12:00 PM, 2:30 PM
-const ALL_TIME_SLOTS = [
-  { value: '09:30', label: '9:30 AM' },
-  { value: '12:00', label: '12:00 PM' },
-  { value: '14:30', label: '2:30 PM' },
-]
-
-function formatTime(val: string) {
-  return ALL_TIME_SLOTS.find(s => s.value === val)?.label ?? val
-}
+// Bookable times come from the availability API, which reflects the admin's
+// configured schedule — this just renders whatever comes back.
+const formatTime = formatSlotLabel
 
 // ── Time Slot Picker ──────────────────────────────────────────────────────────
 function TimeSlotPicker({
@@ -70,7 +64,7 @@ function TimeSlotPicker({
   return (
     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
       {availableSlots.map(slot => {
-        const label = ALL_TIME_SLOTS.find(s => s.value === slot)?.label ?? slot
+        const label = formatSlotLabel(slot)
         return (
           <button
             key={slot}

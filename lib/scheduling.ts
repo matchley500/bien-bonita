@@ -1,22 +1,43 @@
 // ─── Booking constraints ───────────────────────────────────────────────────────
+//
+// Bookable days, slot times, and the daily client cap are all admin-editable
+// (Settings → Booking Schedule). These are only the fallbacks used before any
+// settings have been saved.
 
-// Which days are bookable is controlled by the admin via the Availability tab
-// (recurring weekday blocks) — no days are hardcoded off here.
-export const MAX_CLIENTS_PER_DAY = 3
+export const DEFAULT_SLOTS = ['09:30', '12:00', '14:30']
+export const DEFAULT_MAX_CLIENTS_PER_DAY = 3
 
-// Fixed appointment slots: 9:30 AM, 12:00 PM, 2:30 PM
-const FIXED_SLOTS = ['09:30', '12:00', '14:30']
+// ─── Slot helpers ──────────────────────────────────────────────────────────────
 
-export function buildAllSlots(): string[] {
-  return [...FIXED_SLOTS]
-}
-
-// ─── Slot blocking ─────────────────────────────────────────────────────────────
-
-function slotToMinutes(slot: string): number {
+export function slotToMinutes(slot: string): number {
   const [h, m] = slot.split(':').map(Number)
   return h * 60 + m
 }
+
+// "09:30" → "9:30 AM". Works for any time, not just the configured slots, so
+// appointments booked under an older schedule still display correctly.
+export function formatSlotLabel(slot: string): string {
+  const [h, m] = slot.split(':').map(Number)
+  if (isNaN(h) || isNaN(m)) return slot
+  const period = h < 12 ? 'AM' : 'PM'
+  const dh = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${dh}:${String(m).padStart(2, '0')} ${period}`
+}
+
+// Normalizes stored slots: valid HH:MM only, de-duplicated, chronological
+export function normalizeSlots(slots: unknown): string[] {
+  if (!Array.isArray(slots)) return [...DEFAULT_SLOTS]
+  const valid = slots
+    .filter((s): s is string => typeof s === 'string' && /^\d{2}:\d{2}$/.test(s))
+    .filter(s => {
+      const [h, m] = s.split(':').map(Number)
+      return h >= 0 && h <= 23 && m >= 0 && m <= 59
+    })
+  const unique = Array.from(new Set(valid))
+  return unique.sort((a, b) => slotToMinutes(a) - slotToMinutes(b))
+}
+
+// ─── Slot blocking ─────────────────────────────────────────────────────────────
 
 // Returns all slots that overlap a 2-hour appointment + travel (both ways) + 30-min grace.
 // travelMinutes = one-way travel time. Total blocked = 2h + (travelMinutes × 2) + 30min.

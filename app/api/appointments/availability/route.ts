@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAppointments, getBlocked, getMobileCharges } from '@/lib/db'
-import { buildAllSlots, expandWithBuffer, filterPastSlots } from '@/lib/scheduling'
+import { getAppointments, getBlocked, getMobileCharges, getSettings } from '@/lib/db'
+import { expandWithBuffer, filterPastSlots } from '@/lib/scheduling'
 
 function dayOfWeek(dateStr: string): number {
   const [y, mo, d] = dateStr.split('-').map(Number)
@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
   const date = request.nextUrl.searchParams.get('date')
   if (!date) return NextResponse.json({ available: [] })
 
-  const [appointments, blocked, charges] = await Promise.all([
-    getAppointments(), getBlocked(), getMobileCharges(),
+  const [appointments, blocked, charges, settings] = await Promise.all([
+    getAppointments(), getBlocked(), getMobileCharges(), getSettings(),
   ])
 
   // Fully blocked: specific date or recurring weekday
@@ -21,11 +21,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ available: [] })
   }
 
-  const allSlots = buildAllSlots()
+  // Day is full once the client cap is reached
+  const dayAppts = appointments.filter(a => a.date === date && a.status !== 'rejected')
+  if (dayAppts.length >= settings.maxClientsPerDay) {
+    return NextResponse.json({ available: [] })
+  }
+
+  const allSlots = settings.slots
 
   // Build taken set — each appointment blocks itself + overlapping slots (accounting for travel)
   const taken = new Set<string>()
-  for (const appt of appointments.filter(a => a.date === date && a.status !== 'rejected')) {
+  for (const appt of dayAppts) {
     const travelMin = appt.locationType === 'mobile'
       ? (charges.areas.find(a => a.label === appt.mobileArea)?.travelMinutes ?? 15)
       : 0

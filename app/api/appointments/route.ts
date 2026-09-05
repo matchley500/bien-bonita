@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAppointments, setAppointments, getBlocked, getCustomers, setCustomers } from '@/lib/db'
+import { getAppointments, setAppointments, getBlocked, getCustomers, setCustomers, getSettings } from '@/lib/db'
 import { verifyCustomerSession } from '@/lib/customers'
 import { sendMail, bookingRequestEmailHtml, bookingRequestAdminEmailHtml } from '@/lib/mailer'
-import { buildAllSlots, MAX_CLIENTS_PER_DAY } from '@/lib/scheduling'
-
-function fmtTime(val: string) {
-  const slots: Record<string, string> = { '09:30': '9:30 AM', '12:00': '12:00 PM', '14:30': '2:30 PM' }
-  return slots[val] ?? val
-}
+import { formatSlotLabel as fmtTime } from '@/lib/scheduling'
 
 function dayOfWeek(dateStr: string): number {
   const [y, mo, d] = dateStr.split('-').map(Number)
@@ -51,14 +46,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Please provide your address for mobile service.' }, { status: 400 })
   }
 
-  // Validate time slot
-  if (!buildAllSlots().includes(time)) {
-    return NextResponse.json({ error: 'Invalid time slot.' }, { status: 400 })
-  }
-
   // Approved accounts may always book — the "booking closed" setting only
   // gates new clients, and account approval is that gate now.
-  const [appointments, blocked] = await Promise.all([getAppointments(), getBlocked()])
+  const [appointments, blocked, settings] = await Promise.all([
+    getAppointments(), getBlocked(), getSettings(),
+  ])
+
+  // Validate time slot against the admin's current schedule
+  if (!settings.slots.includes(time)) {
+    return NextResponse.json({ error: 'Invalid time slot.' }, { status: 400 })
+  }
 
   // Check if day is explicitly blocked
   if (blocked.dates.includes(date) || blocked.weekdays.includes(dayOfWeek(date))) {
@@ -77,7 +74,7 @@ export async function POST(request: NextRequest) {
   const dayCount = appointments.filter(a =>
     a.date === date && a.status !== 'rejected'
   ).length
-  if (dayCount >= MAX_CLIENTS_PER_DAY) {
+  if (dayCount >= settings.maxClientsPerDay) {
     return NextResponse.json({ error: 'This day is fully booked. Please choose another day.' }, { status: 409 })
   }
 

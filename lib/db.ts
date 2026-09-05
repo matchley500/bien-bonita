@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis'
+import { DEFAULT_SLOTS, DEFAULT_MAX_CLIENTS_PER_DAY, normalizeSlots } from '@/lib/scheduling'
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL!,
@@ -74,6 +75,9 @@ export interface Customer {
 export interface Settings {
   bookingOpen: boolean
   salonAddress: string
+  // Admin-editable booking schedule
+  slots: string[]
+  maxClientsPerDay: number
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -111,7 +115,12 @@ const DEFAULT_MOBILE_CHARGES: MobileCharges = {
   ],
 }
 
-const DEFAULT_SETTINGS: Settings = { bookingOpen: false, salonAddress: '' }
+const DEFAULT_SETTINGS: Settings = {
+  bookingOpen: false,
+  salonAddress: '',
+  slots: [...DEFAULT_SLOTS],
+  maxClientsPerDay: DEFAULT_MAX_CLIENTS_PER_DAY,
+}
 
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
@@ -182,7 +191,17 @@ export async function setCustomers(data: Customer[]): Promise<void> {
 export async function getSettings(): Promise<Settings> {
   const raw = await redis.get<Settings>('settings')
   // Merge with defaults so settings saved before new fields existed stay valid
-  return { ...DEFAULT_SETTINGS, ...(raw ?? {}) }
+  const merged = { ...DEFAULT_SETTINGS, ...(raw ?? {}) }
+  const slots = normalizeSlots(merged.slots)
+  return {
+    ...merged,
+    // Never leave the salon with zero bookable times
+    slots: slots.length ? slots : [...DEFAULT_SLOTS],
+    maxClientsPerDay:
+      Number.isFinite(merged.maxClientsPerDay) && merged.maxClientsPerDay > 0
+        ? Math.floor(merged.maxClientsPerDay)
+        : DEFAULT_MAX_CLIENTS_PER_DAY,
+  }
 }
 
 export async function setSettings(data: Settings): Promise<void> {

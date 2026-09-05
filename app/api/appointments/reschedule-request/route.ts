@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAppointments, setAppointments } from '@/lib/db'
+import { getAppointments, setAppointments, getSettings } from '@/lib/db'
 import { sendMail, rescheduleReceivedEmailHtml, rescheduleAdminEmailHtml } from '@/lib/mailer'
-import { buildAllSlots } from '@/lib/scheduling'
-
-function fmtTime(val: string) {
-  const [hStr, mStr] = val.split(':')
-  const h = parseInt(hStr)
-  const period = h < 12 ? 'AM' : 'PM'
-  const dh = h > 12 ? h - 12 : h === 0 ? 12 : h
-  return `${dh}:${mStr} ${period}`
-}
+import { formatSlotLabel as fmtTime } from '@/lib/scheduling'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -19,9 +11,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  // Validate requested time is a valid slot
-  const allSlots = buildAllSlots()
-  if (!allSlots.includes(requestedTime)) {
+  // Validate requested time against the admin's current schedule
+  const settings = await getSettings()
+  if (!settings.slots.includes(requestedTime)) {
     return NextResponse.json({ error: 'Invalid requested time' }, { status: 400 })
   }
 

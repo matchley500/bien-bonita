@@ -2,18 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifySession } from '@/lib/auth'
 import { getAppointments, setAppointments, getSettings } from '@/lib/db'
 import { sendMail, confirmationEmailHtml, generateICS } from '@/lib/mailer'
-
-const SLOT_LABELS: Record<string, string> = {
-  '09:30': '9:30 AM', '12:00': '12:00 PM', '14:30': '2:30 PM',
-}
-function fmtTime(val: string) {
-  if (SLOT_LABELS[val]) return SLOT_LABELS[val]
-  const [h, m] = val.split(':').map(Number)
-  if (isNaN(h) || isNaN(m)) return val
-  const period = h < 12 ? 'AM' : 'PM'
-  const dh = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return `${dh}:${String(m).padStart(2, '0')} ${period}`
-}
+import { formatSlotLabel as fmtTime } from '@/lib/scheduling'
 
 // Admin — view all appointments
 export async function GET() {

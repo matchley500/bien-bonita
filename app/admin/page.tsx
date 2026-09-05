@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatSlotLabel, DEFAULT_SLOTS, DEFAULT_MAX_CLIENTS_PER_DAY } from '@/lib/scheduling'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Service {
@@ -44,21 +45,9 @@ const EMPTY_SVC = { name: '', description: '', price: '', duration: '', category
 const EMPTY_APPT = { date: '', time: '', customerName: '', customerEmail: '', customerPhone: '', serviceNames: '', total: '', notes: '' }
 type EditForm = { date: string; time: string; customerName: string; customerEmail: string; customerPhone: string; serviceNames: string; total: string; notes: string }
 
-// Fixed 3-slot system (9:30 AM / 12:00 PM / 2:30 PM)
-const TIME_SLOTS = [
-  { value: '09:30', label: '9:30 AM' },
-  { value: '12:00', label: '12:00 PM' },
-  { value: '14:30', label: '2:30 PM' },
-]
-function fmtTime(val: string) {
-  const found = TIME_SLOTS.find(s => s.value === val)
-  if (found) return found.label
-  const [h, m] = val.split(':').map(Number)
-  if (isNaN(h) || isNaN(m)) return val
-  const period = h < 12 ? 'AM' : 'PM'
-  const dh = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return `${dh}:${String(m).padStart(2, '0')} ${period}`
-}
+// Slot times come from Settings → Booking Schedule; formatSlotLabel handles any
+// time, so appointments booked under an older schedule still display correctly.
+const fmtTime = formatSlotLabel
 function fmtDate(d: string) {
   if (!d) return ''
   const [y, mo, day] = d.split('-').map(Number)
@@ -189,6 +178,9 @@ export default function AdminDashboard() {
   // Settings
   const [bookingOpen, setBookingOpen] = useState(false)
   const [salonAddress, setSalonAddress] = useState('')
+  const [slots, setSlots] = useState<string[]>([...DEFAULT_SLOTS])
+  const [maxClients, setMaxClients] = useState(DEFAULT_MAX_CLIENTS_PER_DAY)
+  const [scheduleError, setScheduleError] = useState('')
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
 
@@ -230,6 +222,10 @@ export default function AdminDashboard() {
         setBlocked(blk)
         setBookingOpen(settings.bookingOpen ?? false)
         setSalonAddress(settings.salonAddress ?? '')
+        // Fall back to defaults if settings failed to load, so the editor is
+        // never blank (saving an empty schedule is rejected anyway)
+        setSlots(settings.slots?.length ? settings.slots : [...DEFAULT_SLOTS])
+        setMaxClients(settings.maxClientsPerDay ?? DEFAULT_MAX_CLIENTS_PER_DAY)
         setCustomers(Array.isArray(custs) ? custs : [])
       })
     })
@@ -488,14 +484,46 @@ export default function AdminDashboard() {
   // ── Settings ──
   const handleSettingsSave = async () => {
     setSavingSettings(true)
-    await fetch('/api/admin/settings', {
+    setScheduleError('')
+    const cleaned = Array.from(new Set(slots.filter(s => /^\d{2}:\d{2}$/.test(s))))
+      .sort((a, b) => a.localeCompare(b))
+    if (cleaned.length === 0) {
+      setScheduleError('Add at least one appointment time.')
+      setSavingSettings(false)
+      return
+    }
+    if (!Number.isFinite(maxClients) || maxClients < 1) {
+      setScheduleError('Max clients per day must be at least 1.')
+      setSavingSettings(false)
+      return
+    }
+    const res = await fetch('/api/admin/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookingOpen, salonAddress }),
+      body: JSON.stringify({ bookingOpen, salonAddress, slots: cleaned, maxClientsPerDay: maxClients }),
     })
+    const saved = await res.json().catch(() => null)
     setSavingSettings(false)
+    if (!res.ok) {
+      setScheduleError(saved?.error ?? 'Could not save settings.')
+      return
+    }
+    if (saved?.slots) setSlots(saved.slots)
     setSettingsSaved(true)
     setTimeout(() => setSettingsSaved(false), 2500)
+  }
+
+  // Bookable days are stored as the inverse: blocked.weekdays lists days off,
+  // shared with the Availability tab so both views stay in sync.
+  const toggleBookableDay = async (dow: number) => {
+    // Currently bookable → block it; currently blocked → open it
+    const method = blocked.weekdays.includes(dow) ? 'DELETE' : 'POST'
+    await fetch('/api/admin/blocked', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'weekday', day: dow }),
+    })
+    await refreshBlocked()
   }
 
   // ── Mobile charges ──
@@ -512,6 +540,7 @@ export default function AdminDashboard() {
   }
 
   // ── Derived ──
+  const timeSlots = slots.map(v => ({ value: v, label: formatSlotLabel(v) }))
   const apptDateSet = new Set(appointments.filter(a => a.status !== 'rejected').map(a => a.date))
   const blockedDateSet = new Set(blocked.dates)
   const calMarkers: Record<string, 'appt' | 'blocked' | 'both'> = {}
@@ -727,7 +756,7 @@ export default function AdminDashboard() {
                     <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Time *</label>
                     <select required value={apptForm.time} onChange={e => setApptForm(f => ({ ...f, time: e.target.value }))} className="input-field">
                       <option value="">Select…</option>
-                      {TIME_SLOTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      {timeSlots.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1030,7 +1059,7 @@ export default function AdminDashboard() {
                     <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Time *</label>
                     <select required value={blockTime} onChange={e => setBlockTime(e.target.value)} className="input-field">
                       <option value="">Select a time…</option>
-                      {TIME_SLOTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      {timeSlots.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>
                   </div>
                 )}
@@ -1083,7 +1112,7 @@ export default function AdminDashboard() {
                   <div>
                     <p className="font-body text-xs uppercase tracking-widest text-darkbrown/40 mb-3">Time Slots</p>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {TIME_SLOTS.map(slot => {
+                      {timeSlots.map(slot => {
                         const isBlockedSlot = dayBlockedSlots.includes(slot.value)
                         const isBooked = dayAppointments.some(a => a.time === slot.value)
                         return (
@@ -1571,19 +1600,118 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Schedule info */}
-          <div className="card space-y-3">
-            <p className="font-sub font-bold text-darkbrown text-lg">Booking Schedule</p>
-            <div className="space-y-2 font-body text-sm text-darkbrown/60">
-              <p>📅 <strong>Days:</strong> Every day is bookable unless you block it — use the Availability tab&rsquo;s recurring day toggles to set which days you work</p>
-              <p>⏰ <strong>Slots:</strong> 9:30 AM · 12:00 PM · 2:30 PM</p>
-              <p>👥 <strong>Max clients per day:</strong> 3</p>
+          {/* Booking schedule editor */}
+          <div className="card space-y-6">
+            <div>
+              <p className="font-sub font-bold text-darkbrown text-lg">Booking Schedule</p>
+              <p className="font-body text-xs text-darkbrown/40 tracking-wide mt-1">
+                Control which days you work, what times clients can book, and how many you&rsquo;ll take per day.
+              </p>
+            </div>
+
+            {/* Working days */}
+            <div>
+              <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-2">
+                Working Days
+              </label>
+              <div className="grid grid-cols-7 gap-1">
+                {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((label, dow) => {
+                  const isOpen = !blocked.weekdays.includes(dow)
+                  return (
+                    <button
+                      key={dow}
+                      type="button"
+                      onClick={() => toggleBookableDay(dow)}
+                      title={isOpen ? `Stop taking ${label} appointments` : `Start taking ${label} appointments`}
+                      className={`py-2.5 px-0.5 rounded-xl border-2 text-[11px] font-body font-bold tracking-wide transition-all ${
+                        isOpen
+                          ? 'border-forest-400 bg-forest-50 text-forest-700'
+                          : 'border-sand/40 bg-parchment/40 text-darkbrown/30 line-through'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="font-body text-[11px] text-darkbrown/30 mt-2">
+                Green days are open for booking. Saves immediately, and stays in sync with the Availability tab.
+              </p>
+            </div>
+
+            {/* Appointment times */}
+            <div>
+              <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-2">
+                Appointment Times
+              </label>
+              <div className="space-y-2">
+                {slots.map((slot, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={slot}
+                      onChange={e => setSlots(s => s.map((v, idx) => (idx === i ? e.target.value : v)))}
+                      className="input-field flex-1"
+                    />
+                    <span className="font-body text-xs text-darkbrown/40 w-20 shrink-0">
+                      {/^\d{2}:\d{2}$/.test(slot) ? formatSlotLabel(slot) : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSlots(s => s.filter((_, idx) => idx !== i))}
+                      className="text-red-400 hover:text-red-600 text-lg leading-none px-2 shrink-0"
+                      title="Remove this time"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSlots(s => [...s, '09:00'])}
+                className="mt-2 text-xs font-body font-bold text-terracotta-500 uppercase tracking-wider hover:underline"
+              >
+                + Add a time
+              </button>
+              <p className="font-body text-[11px] text-darkbrown/30 mt-2">
+                Each appointment blocks 2 hours plus a 30-minute grace period, so leave at least 2½ hours
+                between times or booking one will make the next unavailable.
+              </p>
+            </div>
+
+            {/* Max clients */}
+            <div>
+              <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">
+                Max Clients Per Day
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={maxClients}
+                onChange={e => setMaxClients(Number(e.target.value))}
+                className="input-field w-32"
+              />
+              <p className="font-body text-[11px] text-darkbrown/30 mt-1">
+                Once a day hits this many appointments, it shows as fully booked.
+              </p>
+            </div>
+
+            {scheduleError && (
+              <p className="text-sm font-body text-red-500 bg-red-50 rounded-2xl px-4 py-2.5">{scheduleError}</p>
+            )}
+
+            <div className="flex items-center gap-4">
+              <button onClick={handleSettingsSave} disabled={savingSettings} className="btn-primary disabled:opacity-50">
+                {savingSettings ? 'Saving…' : 'Save Schedule'}
+              </button>
+              {settingsSaved && <span className="text-xs font-body text-forest-600 font-bold tracking-wide">✓ Saved!</span>}
+            </div>
+
+            <div className="pt-4 border-t border-sand/30 space-y-1.5 font-body text-xs text-darkbrown/40">
               <p>🕐 <strong>Appointment duration:</strong> 2 hours + 30 min grace</p>
               <p>🚗 <strong>Mobile travel:</strong> Added per area (configure in Mobile Charges tab)</p>
             </div>
-            <p className="font-body text-xs text-darkbrown/30 tracking-wide">
-              Slot times and daily limits are built into the scheduling system. Contact your developer to change them.
-            </p>
           </div>
         </div>
       )}
@@ -1676,7 +1804,11 @@ export default function AdminDashboard() {
                     className="input-field"
                   >
                     <option value="">Select…</option>
-                    {TIME_SLOTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    {/* Keep the original time selectable if the schedule has changed since booking */}
+                    {editForm.time && !slots.includes(editForm.time) && (
+                      <option value={editForm.time}>{fmtTime(editForm.time)} (current)</option>
+                    )}
+                    {timeSlots.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
               </div>

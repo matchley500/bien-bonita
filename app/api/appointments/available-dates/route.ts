@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAppointments, getBlocked, getMobileCharges } from '@/lib/db'
-import { buildAllSlots, expandWithBuffer, filterPastSlots, MAX_CLIENTS_PER_DAY } from '@/lib/scheduling'
+import { getAppointments, getBlocked, getMobileCharges, getSettings } from '@/lib/db'
+import { expandWithBuffer, filterPastSlots } from '@/lib/scheduling'
 
 // Public — returns YYYY-MM-DD strings in a month that have no bookable slots
 export async function GET(request: NextRequest) {
@@ -11,11 +11,11 @@ export async function GET(request: NextRequest) {
   const year = parseInt(yearStr)
   const mo = parseInt(monthStr)
   const daysInMonth = new Date(year, mo, 0).getDate()
-  const allSlots = buildAllSlots()
 
-  const [appointments, blocked, charges] = await Promise.all([
-    getAppointments(), getBlocked(), getMobileCharges(),
+  const [appointments, blocked, charges, settings] = await Promise.all([
+    getAppointments(), getBlocked(), getMobileCharges(), getSettings(),
   ])
+  const allSlots = settings.slots
 
   const unavailable: string[] = []
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const dayAppts = appointments.filter(a => a.date === date && a.status !== 'rejected')
 
     // Max clients reached
-    if (dayAppts.length >= MAX_CLIENTS_PER_DAY) {
+    if (dayAppts.length >= settings.maxClientsPerDay) {
       unavailable.push(date)
       continue
     }

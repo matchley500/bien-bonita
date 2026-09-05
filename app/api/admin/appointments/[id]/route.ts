@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifySession } from '@/lib/auth'
 import { getAppointments, setAppointments, getSettings } from '@/lib/db'
 import { sendMail, confirmationEmailHtml, rejectionEmailHtml, appointmentUpdatedEmailHtml, generateICS } from '@/lib/mailer'
-
-const SLOT_LABELS: Record<string, string> = {
-  '09:30': '9:30 AM', '12:00': '12:00 PM', '14:30': '2:30 PM',
-}
-function fmtTime(val: string) { return SLOT_LABELS[val] ?? val }
+import { formatSlotLabel as fmtTime } from '@/lib/scheduling'
 
 export async function PUT(
   request: NextRequest,
