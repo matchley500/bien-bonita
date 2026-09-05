@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatSlotLabel, DEFAULT_SLOTS, DEFAULT_MAX_CLIENTS_PER_DAY } from '@/lib/scheduling'
+import { formatSlotLabel, DEFAULT_SLOTS, DEFAULT_MAX_CLIENTS_PER_DAY, DEFAULT_GEL_UPGRADE_PRICE } from '@/lib/scheduling'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Service {
@@ -44,7 +44,6 @@ const CATEGORIES = [
 ]
 const EMPTY_SVC = { name: '', description: '', price: '', duration: '', category: 'manicure' }
 const EMPTY_APPT = { date: '', time: '', customerName: '', customerEmail: '', customerPhone: '', serviceNames: '', total: '', notes: '' }
-const GEL_UPGRADE_PRICE = 15
 type EditForm = { date: string; time: string; customerName: string; customerEmail: string; customerPhone: string; serviceNames: string; total: string; notes: string }
 
 // Slot times come from Settings → Booking Schedule; formatSlotLabel handles any
@@ -185,6 +184,9 @@ export default function AdminDashboard() {
   const [salonAddress, setSalonAddress] = useState('')
   const [slots, setSlots] = useState<string[]>([...DEFAULT_SLOTS])
   const [maxClients, setMaxClients] = useState(DEFAULT_MAX_CLIENTS_PER_DAY)
+  const [gelPrice, setGelPrice] = useState(DEFAULT_GEL_UPGRADE_PRICE)
+  const [savingGelPrice, setSavingGelPrice] = useState(false)
+  const [gelPriceSaved, setGelPriceSaved] = useState(false)
   const [scheduleError, setScheduleError] = useState('')
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
@@ -231,6 +233,7 @@ export default function AdminDashboard() {
         // never blank (saving an empty schedule is rejected anyway)
         setSlots(settings.slots?.length ? settings.slots : [...DEFAULT_SLOTS])
         setMaxClients(settings.maxClientsPerDay ?? DEFAULT_MAX_CLIENTS_PER_DAY)
+        setGelPrice(settings.gelUpgradePrice ?? DEFAULT_GEL_UPGRADE_PRICE)
         setCustomers(Array.isArray(custs) ? custs : [])
       })
     })
@@ -241,7 +244,7 @@ export default function AdminDashboard() {
     .map(id => services.find(s => s.id === id))
     .filter((s): s is Service => !!s)
   const apptServicesTotal = apptServices.reduce(
-    (sum, s) => sum + s.price + (apptGelIds.includes(s.id) ? GEL_UPGRADE_PRICE : 0),
+    (sum, s) => sum + s.price + (apptGelIds.includes(s.id) ? gelPrice : 0),
     0
   )
   const apptServiceNames = apptServices
@@ -565,6 +568,20 @@ export default function AdminDashboard() {
     setTimeout(() => setSettingsSaved(false), 2500)
   }
 
+  const handleGelPriceSave = async () => {
+    setSavingGelPrice(true)
+    const res = await fetch('/api/admin/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gelUpgradePrice: gelPrice }),
+    })
+    setSavingGelPrice(false)
+    if (res.ok) {
+      setGelPriceSaved(true)
+      setTimeout(() => setGelPriceSaved(false), 2500)
+    }
+  }
+
   // Bookable days are stored as the inverse: blocked.weekdays lists days off,
   // shared with the Availability tab so both views stay in sync.
   const toggleBookableDay = async (dow: number) => {
@@ -856,7 +873,7 @@ export default function AdminDashboard() {
                                   : 'border-sand/50 text-darkbrown/40 hover:border-darkbrown/30'
                               }`}
                             >
-                              {apptGelIds.includes(s.id) ? `✓ Builder Gel Upgrade +$${GEL_UPGRADE_PRICE}` : `+ Builder Gel Upgrade +$${GEL_UPGRADE_PRICE}`}
+                              {apptGelIds.includes(s.id) ? `✓ Builder Gel Upgrade +$${gelPrice}` : `+ Builder Gel Upgrade +$${gelPrice}`}
                             </button>
                           )}
                         </div>
@@ -1279,6 +1296,38 @@ export default function AdminDashboard() {
       {/* ════════════════ SERVICES TAB ════════════════ */}
       {tab === 'services' && (
         <div>
+          {/* Add-on pricing */}
+          <div className="card mb-6 flex flex-col sm:flex-row sm:items-end gap-4">
+            <div className="flex-1">
+              <p className="font-sub font-bold text-darkbrown text-base">Builder Gel Upgrade</p>
+              <p className="font-body text-xs text-darkbrown/40 tracking-wide mt-0.5">
+                Optional add-on price for services that offer it. Applies to new bookings only —
+                appointments already booked keep the price they were quoted.
+              </p>
+            </div>
+            <div className="flex items-end gap-3 shrink-0">
+              <div>
+                <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Price ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={gelPrice}
+                  onChange={e => setGelPrice(Number(e.target.value))}
+                  className="input-field w-28"
+                />
+              </div>
+              <button
+                onClick={handleGelPriceSave}
+                disabled={savingGelPrice || gelPrice < 0}
+                className="btn-primary text-xs disabled:opacity-50"
+              >
+                {savingGelPrice ? 'Saving…' : 'Save'}
+              </button>
+              {gelPriceSaved && <span className="text-xs font-body text-forest-600 font-bold tracking-wide pb-3">✓ Saved!</span>}
+            </div>
+          </div>
+
           <div className="flex justify-end mb-6">
             <button onClick={() => { setSvcForm(EMPTY_SVC); setEditingId(null); setShowSvcForm(!showSvcForm) }} className="btn-primary text-xs">
               {showSvcForm && !editingId ? 'Cancel' : '+ Add Service'}

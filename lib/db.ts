@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis'
-import { DEFAULT_SLOTS, DEFAULT_MAX_CLIENTS_PER_DAY, normalizeSlots } from '@/lib/scheduling'
+import { DEFAULT_SLOTS, DEFAULT_MAX_CLIENTS_PER_DAY, DEFAULT_GEL_UPGRADE_PRICE, normalizeSlots } from '@/lib/scheduling'
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL!,
@@ -78,6 +78,8 @@ export interface Settings {
   // Admin-editable booking schedule
   slots: string[]
   maxClientsPerDay: number
+  // Price of the Builder Gel add-on offered on eligible services
+  gelUpgradePrice: number
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -120,6 +122,7 @@ const DEFAULT_SETTINGS: Settings = {
   salonAddress: '',
   slots: [...DEFAULT_SLOTS],
   maxClientsPerDay: DEFAULT_MAX_CLIENTS_PER_DAY,
+  gelUpgradePrice: DEFAULT_GEL_UPGRADE_PRICE,
 }
 
 // ─── Appointments ─────────────────────────────────────────────────────────────
@@ -201,6 +204,10 @@ export async function getSettings(): Promise<Settings> {
       Number.isFinite(merged.maxClientsPerDay) && merged.maxClientsPerDay > 0
         ? Math.floor(merged.maxClientsPerDay)
         : DEFAULT_MAX_CLIENTS_PER_DAY,
+    gelUpgradePrice:
+      Number.isFinite(merged.gelUpgradePrice) && merged.gelUpgradePrice >= 0
+        ? merged.gelUpgradePrice
+        : DEFAULT_GEL_UPGRADE_PRICE,
   }
 }
 

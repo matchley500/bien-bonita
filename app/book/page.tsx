@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import BookingCalendar, { toDateKey } from '@/components/BookingCalendar'
-import { formatSlotLabel } from '@/lib/scheduling'
+import { formatSlotLabel, DEFAULT_GEL_UPGRADE_PRICE } from '@/lib/scheduling'
 
 interface Service {
   id: string
@@ -32,7 +32,6 @@ const categoryColors: Record<string, string> = {
   addons: 'bg-forest-600 text-cream',
 }
 const categoryOrder = ['manicure', 'pedicure', 'gel', 'extensions', 'removals', 'designs', 'addons']
-const GEL_UPGRADE_PRICE = 15
 
 // Bookable times come from the availability API, which reflects the admin's
 // configured schedule — this just renders whatever comes back.
@@ -88,6 +87,7 @@ function TimeSlotPicker({
 export default function BookPage() {
   const [services, setServices] = useState<Service[]>([])
   const [mobileAreas, setMobileAreas] = useState<MobileArea[]>([])
+  const [gelUpgradePrice, setGelUpgradePrice] = useState(DEFAULT_GEL_UPGRADE_PRICE)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [gelUpgrades, setGelUpgrades] = useState<Set<string>>(new Set())
   const [step, setStep] = useState<'services' | 'details' | 'confirmed'>('services')
@@ -111,6 +111,12 @@ export default function BookPage() {
   useEffect(() => { fetch('/api/services').then(r => r.json()).then(setServices) }, [])
   useEffect(() => {
     fetch('/api/mobile-charges').then(r => r.json()).then(d => setMobileAreas(d.areas || []))
+  }, [])
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(d => { if (typeof d.gelUpgradePrice === 'number') setGelUpgradePrice(d.gelUpgradePrice) })
+      .catch(() => {})
   }, [])
 
   // Check for a logged-in customer and pre-fill their details
@@ -169,7 +175,7 @@ export default function BookPage() {
 
   const selectedServices = services.filter(s => selected.has(s.id))
   const gelCount = selectedServices.filter(s => gelUpgrades.has(s.id)).length
-  const serviceTotal = selectedServices.reduce((sum, s) => sum + s.price, 0) + gelCount * GEL_UPGRADE_PRICE
+  const serviceTotal = selectedServices.reduce((sum, s) => sum + s.price, 0) + gelCount * gelUpgradePrice
   const mobileFee = locationType === 'mobile' && mobileArea
     ? (mobileAreas.find(a => a.id === mobileArea)?.fee ?? 0)
     : 0
@@ -271,7 +277,7 @@ export default function BookPage() {
                 </div>
                 {gelUpgrades.has(s.id) && (
                   <div className="flex justify-between text-xs text-teal-600 pl-3 mt-0.5">
-                    <span>+ Builder Gel Upgrade</span><span>+${GEL_UPGRADE_PRICE}</span>
+                    <span>+ Builder Gel Upgrade</span><span>+${gelUpgradePrice}</span>
                   </div>
                 )}
               </li>
@@ -392,7 +398,7 @@ export default function BookPage() {
                                 }`}
                               >
                                 <span>{hasGel ? '✓ Builder Gel Upgrade Added' : '+ Add Builder Gel Upgrade'}</span>
-                                <span className={hasGel ? 'text-cream/70' : 'text-terracotta-500'}>+${GEL_UPGRADE_PRICE}</span>
+                                <span className={hasGel ? 'text-cream/70' : 'text-terracotta-500'}>+${gelUpgradePrice}</span>
                               </button>
                             </div>
                           )}
@@ -570,7 +576,7 @@ export default function BookPage() {
                       </div>
                       {gelUpgrades.has(s.id) && (
                         <div className="flex justify-between text-xs text-teal-600 pl-2 mt-1">
-                          <span>+ Builder Gel Upgrade</span><span>+${GEL_UPGRADE_PRICE}</span>
+                          <span>+ Builder Gel Upgrade</span><span>+${gelUpgradePrice}</span>
                         </div>
                       )}
                     </li>

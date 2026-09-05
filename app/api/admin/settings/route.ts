@@ -30,6 +30,14 @@ export async function PUT(request: NextRequest) {
     updated.maxClientsPerDay = Math.floor(max)
   }
 
+  if (body.gelUpgradePrice !== undefined) {
+    const price = Number(body.gelUpgradePrice)
+    if (!Number.isFinite(price) || price < 0) {
+      return NextResponse.json({ error: 'Builder gel upgrade price must be 0 or more.' }, { status: 400 })
+    }
+    updated.gelUpgradePrice = price
+  }
+
   await setSettings(updated)
   return NextResponse.json(updated)
 }

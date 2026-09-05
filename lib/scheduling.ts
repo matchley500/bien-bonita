@@ -6,6 +6,7 @@
 
 export const DEFAULT_SLOTS = ['09:30', '12:00', '14:30']
 export const DEFAULT_MAX_CLIENTS_PER_DAY = 3
+export const DEFAULT_GEL_UPGRADE_PRICE = 15
 
 // ─── Slot helpers ──────────────────────────────────────────────────────────────
 
