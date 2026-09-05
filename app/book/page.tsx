@@ -271,7 +271,7 @@ export default function BookPage() {
                 </div>
                 {gelUpgrades.has(s.id) && (
                   <div className="flex justify-between text-xs text-teal-600 pl-3 mt-0.5">
-                    <span>+ Gel Upgrade</span><span>+${GEL_UPGRADE_PRICE}</span>
+                    <span>+ Builder Gel Upgrade</span><span>+${GEL_UPGRADE_PRICE}</span>
                   </div>
                 )}
               </li>
@@ -391,7 +391,7 @@ export default function BookPage() {
                                     : 'border-sand text-darkbrown/60 hover:border-darkbrown/30'
                                 }`}
                               >
-                                <span>{hasGel ? '✓ Gel Upgrade Added' : '+ Add Gel Upgrade'}</span>
+                                <span>{hasGel ? '✓ Builder Gel Upgrade Added' : '+ Add Builder Gel Upgrade'}</span>
                                 <span className={hasGel ? 'text-cream/70' : 'text-terracotta-500'}>+${GEL_UPGRADE_PRICE}</span>
                               </button>
                             </div>
@@ -570,7 +570,7 @@ export default function BookPage() {
                       </div>
                       {gelUpgrades.has(s.id) && (
                         <div className="flex justify-between text-xs text-teal-600 pl-2 mt-1">
-                          <span>+ Gel Upgrade</span><span>+${GEL_UPGRADE_PRICE}</span>
+                          <span>+ Builder Gel Upgrade</span><span>+${GEL_UPGRADE_PRICE}</span>
                         </div>
                       )}
                     </li>

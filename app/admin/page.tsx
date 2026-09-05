@@ -245,7 +245,7 @@ export default function AdminDashboard() {
     0
   )
   const apptServiceNames = apptServices
-    .map(s => (apptGelIds.includes(s.id) ? `${s.name} + Gel` : s.name))
+    .map(s => (apptGelIds.includes(s.id) ? `${s.name} + Builder Gel` : s.name))
     .join(', ')
 
   // Keep the Total field in step with the picked services (still hand-editable
@@ -856,7 +856,7 @@ export default function AdminDashboard() {
                                   : 'border-sand/50 text-darkbrown/40 hover:border-darkbrown/30'
                               }`}
                             >
-                              {apptGelIds.includes(s.id) ? `✓ Gel Upgrade +$${GEL_UPGRADE_PRICE}` : `+ Gel Upgrade +$${GEL_UPGRADE_PRICE}`}
+                              {apptGelIds.includes(s.id) ? `✓ Builder Gel Upgrade +$${GEL_UPGRADE_PRICE}` : `+ Builder Gel Upgrade +$${GEL_UPGRADE_PRICE}`}
                             </button>
                           )}
                         </div>
