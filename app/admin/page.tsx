@@ -8,6 +8,7 @@ import { formatSlotLabel, DEFAULT_SLOTS, DEFAULT_MAX_CLIENTS_PER_DAY } from '@/l
 interface Service {
   id: string; name: string; description: string
   price: number; duration: string; category: string
+  hasGelUpgrade?: boolean
 }
 interface RescheduleRequest {
   requestedDate: string
@@ -43,6 +44,7 @@ const CATEGORIES = [
 ]
 const EMPTY_SVC = { name: '', description: '', price: '', duration: '', category: 'manicure' }
 const EMPTY_APPT = { date: '', time: '', customerName: '', customerEmail: '', customerPhone: '', serviceNames: '', total: '', notes: '' }
+const GEL_UPGRADE_PRICE = 15
 type EditForm = { date: string; time: string; customerName: string; customerEmail: string; customerPhone: string; serviceNames: string; total: string; notes: string }
 
 // Slot times come from Settings → Booking Schedule; formatSlotLabel handles any
@@ -151,6 +153,9 @@ export default function AdminDashboard() {
   const [showApptForm, setShowApptForm] = useState(false)
   const [apptForm, setApptForm] = useState(EMPTY_APPT)
   const [savingAppt, setSavingAppt] = useState(false)
+  // Services picked for the appointment being created (ids, duplicates allowed)
+  const [apptServiceIds, setApptServiceIds] = useState<string[]>([])
+  const [apptGelIds, setApptGelIds] = useState<string[]>([])
   const [apptNotice, setApptNotice] = useState('')
   // Set by the Book & Notify button just before the form submits
   const notifyOnSaveRef = useRef(false)
@@ -231,6 +236,26 @@ export default function AdminDashboard() {
     })
   }, [router])
 
+  // Services chosen for the appointment form, with a live running total
+  const apptServices = apptServiceIds
+    .map(id => services.find(s => s.id === id))
+    .filter((s): s is Service => !!s)
+  const apptServicesTotal = apptServices.reduce(
+    (sum, s) => sum + s.price + (apptGelIds.includes(s.id) ? GEL_UPGRADE_PRICE : 0),
+    0
+  )
+  const apptServiceNames = apptServices
+    .map(s => (apptGelIds.includes(s.id) ? `${s.name} + Gel` : s.name))
+    .join(', ')
+
+  // Keep the Total field in step with the picked services (still hand-editable
+  // afterwards for discounts — until the service list changes again)
+  useEffect(() => {
+    if (apptServiceIds.length === 0) return
+    setApptForm(f => ({ ...f, total: String(apptServicesTotal) }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apptServiceIds, apptGelIds, apptServicesTotal])
+
   const handleLogout = async () => {
     await fetch('/api/admin/logout', { method: 'POST' }); router.push('/')
   }
@@ -261,6 +286,27 @@ export default function AdminDashboard() {
   }
 
   // ── Appointment actions ──
+  const openApptForm = (overrides: Partial<typeof EMPTY_APPT> = {}) => {
+    setApptForm({ ...EMPTY_APPT, ...overrides })
+    setApptServiceIds([])
+    setApptGelIds([])
+    setShowApptForm(true)
+  }
+  const addApptService = (id: string) => {
+    setApptServiceIds(ids => [...ids, id])
+  }
+  const removeApptService = (index: number) => {
+    const id = apptServiceIds[index]
+    setApptServiceIds(ids => ids.filter((_, i) => i !== index))
+    // Drop the gel upgrade only if this was the last copy of that service
+    if (apptServiceIds.filter(x => x === id).length <= 1) {
+      setApptGelIds(g => g.filter(x => x !== id))
+    }
+  }
+  const toggleApptGel = (id: string) => {
+    setApptGelIds(g => (g.includes(id) ? g.filter(x => x !== id) : [...g, id]))
+  }
+
   const handleApptSave = async (e: React.FormEvent) => {
     e.preventDefault()
     const notify = notifyOnSaveRef.current
@@ -269,11 +315,19 @@ export default function AdminDashboard() {
     const res = await fetch('/api/admin/appointments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...apptForm, total: Number(apptForm.total) || 0, notifyCustomer: notify }),
+      body: JSON.stringify({
+        ...apptForm,
+        // Picked services win; the free-text field is only a fallback
+        serviceNames: apptServices.length ? apptServiceNames : apptForm.serviceNames,
+        total: Number(apptForm.total) || 0,
+        notifyCustomer: notify,
+      }),
     })
     const saved = await res.json().catch(() => ({}))
     await refreshAppointments()
-    setApptForm(EMPTY_APPT); setShowApptForm(false); setSavingAppt(false)
+    setApptForm(EMPTY_APPT)
+    setApptServiceIds([]); setApptGelIds([])
+    setShowApptForm(false); setSavingAppt(false)
     if (notify) {
       setApptNotice(saved.emailed
         ? '✓ Appointment booked — confirmation emailed to the client.'
@@ -437,14 +491,12 @@ export default function AdminDashboard() {
 
   // ── Book a follow-up for an existing client ──
   const startFollowUp = (client: { customerName: string; customerEmail?: string; customerPhone?: string }) => {
-    setApptForm({
-      ...EMPTY_APPT,
+    openApptForm({
       date: selectedDate,
       customerName: client.customerName,
       customerEmail: client.customerEmail ?? '',
       customerPhone: client.customerPhone ?? '',
     })
-    setShowApptForm(true)
     setTab('appointments')
     setTimeout(() => apptFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80)
   }
@@ -728,7 +780,7 @@ export default function AdminDashboard() {
           <div className="lg:col-span-1 space-y-4">
             <MiniCalendar markers={calMarkers} blockedWeekdays={blocked.weekdays} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
             <button
-              onClick={() => { setApptForm({ ...EMPTY_APPT, date: selectedDate }); setShowApptForm(!showApptForm) }}
+              onClick={() => { showApptForm ? setShowApptForm(false) : openApptForm({ date: selectedDate }) }}
               className="btn-primary w-full text-xs"
             >
               {showApptForm ? 'Cancel' : '+ Add Appointment'}
@@ -764,9 +816,57 @@ export default function AdminDashboard() {
                   <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Phone</label>
                   <input type="tel" value={apptForm.customerPhone} onChange={e => setApptForm(f => ({ ...f, customerPhone: e.target.value }))} className="input-field" placeholder="(555) 123-4567" />
                 </div>
+                {/* Services picker with a live running total */}
                 <div>
                   <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Services</label>
-                  <input type="text" value={apptForm.serviceNames} onChange={e => setApptForm(f => ({ ...f, serviceNames: e.target.value }))} className="input-field" placeholder="e.g. Spa Manicure, Gel Polish" />
+                  <select
+                    value=""
+                    onChange={e => { if (e.target.value) addApptService(e.target.value) }}
+                    className="input-field"
+                  >
+                    <option value="">+ Add a service…</option>
+                    {services.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} — ${s.price}</option>
+                    ))}
+                  </select>
+
+                  {apptServices.length > 0 && (
+                    <div className="mt-3 rounded-2xl bg-parchment/60 px-4 py-3 space-y-2">
+                      {apptServices.map((s, i) => (
+                        <div key={`${s.id}-${i}`} className="space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-body text-sm text-darkbrown flex-1 min-w-0 truncate">{s.name}</span>
+                            <span className="font-body text-sm text-terracotta-500 font-bold shrink-0">${s.price}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeApptService(i)}
+                              className="text-red-400 hover:text-red-600 text-sm leading-none shrink-0"
+                              title={`Remove ${s.name}`}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          {s.hasGelUpgrade && (
+                            <button
+                              type="button"
+                              onClick={() => toggleApptGel(s.id)}
+                              className={`text-[10px] font-body font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border transition-colors ${
+                                apptGelIds.includes(s.id)
+                                  ? 'border-forest-400 bg-forest-50 text-forest-700'
+                                  : 'border-sand/50 text-darkbrown/40 hover:border-darkbrown/30'
+                              }`}
+                            >
+                              {apptGelIds.includes(s.id) ? `✓ Gel Upgrade +$${GEL_UPGRADE_PRICE}` : `+ Gel Upgrade +$${GEL_UPGRADE_PRICE}`}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between pt-2 border-t border-sand/40">
+                        <span className="font-body text-[10px] uppercase tracking-widest text-darkbrown/50 font-bold">Running Total</span>
+                        <span className="font-script text-2xl text-terracotta-500">${apptServicesTotal}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -778,6 +878,30 @@ export default function AdminDashboard() {
                     <input type="text" value={apptForm.notes} onChange={e => setApptForm(f => ({ ...f, notes: e.target.value }))} className="input-field" placeholder="Optional" />
                   </div>
                 </div>
+                {/* Confirmation recap */}
+                {apptForm.date && apptForm.time && (
+                  <div className="rounded-2xl border-2 border-teal-200 bg-teal-50/50 px-4 py-3 space-y-1">
+                    <p className="font-body text-[10px] uppercase tracking-widest text-teal-700 font-bold">Confirm This Booking</p>
+                    <p className="font-sub font-bold text-darkbrown text-sm">
+                      {apptForm.customerName || 'New client'}
+                    </p>
+                    <p className="font-body text-xs text-darkbrown/60">
+                      {fmtDate(apptForm.date)} at {fmtTime(apptForm.time)}
+                    </p>
+                    {(apptServiceNames || apptForm.serviceNames) && (
+                      <p className="font-body text-xs text-teal-700">
+                        ✨ {apptServiceNames || apptForm.serviceNames}
+                      </p>
+                    )}
+                    <p className="font-body text-xs text-darkbrown/60">
+                      Total <span className="font-bold text-terracotta-500">${Number(apptForm.total) || 0}</span>
+                      {apptServices.length > 0 && Number(apptForm.total) !== apptServicesTotal && (
+                        <span className="text-darkbrown/30"> (adjusted from ${apptServicesTotal})</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-2 pt-1">
                   <button
                     type="submit"
@@ -832,7 +956,7 @@ export default function AdminDashboard() {
                 {dayAppointments.length === 0 && dayBlockedSlots.length === 0 && !isDayBlocked ? (
                   <div className="card text-center py-10">
                     <p className="font-body text-darkbrown/40 text-sm tracking-wide">No appointments on this day.</p>
-                    <button onClick={() => { setApptForm({ ...EMPTY_APPT, date: selectedDate }); setShowApptForm(true) }} className="mt-4 text-xs font-body font-bold text-terracotta-500 uppercase tracking-wider hover:underline">+ Add one</button>
+                    <button onClick={() => openApptForm({ date: selectedDate })} className="mt-4 text-xs font-body font-bold text-terracotta-500 uppercase tracking-wider hover:underline">+ Add one</button>
                   </div>
                 ) : (
                   <div className="space-y-3">
