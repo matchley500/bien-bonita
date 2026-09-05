@@ -25,6 +25,16 @@ export function formatSlotLabel(slot: string): string {
   return `${dh}:${String(m).padStart(2, '0')} ${period}`
 }
 
+// Appointment times for a given weekday (0=Sun … 6=Sat).
+// A day with its own list uses it — including an empty list, which means the
+// day has no bookable times. Days never customized fall back to the default.
+export function slotsForDayOfWeek(
+  settings: { slots: string[]; daySlots?: Record<string, string[]> },
+  dow: number
+): string[] {
+  return settings.daySlots?.[String(dow)] ?? settings.slots
+}
+
 // Normalizes stored slots: valid HH:MM only, de-duplicated, chronological
 export function normalizeSlots(slots: unknown): string[] {
   if (!Array.isArray(slots)) return [...DEFAULT_SLOTS]

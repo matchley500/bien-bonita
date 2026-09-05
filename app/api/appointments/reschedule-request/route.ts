@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, setAppointments, getSettings } from '@/lib/db'
 import { sendMail, rescheduleReceivedEmailHtml, rescheduleAdminEmailHtml } from '@/lib/mailer'
-import { formatSlotLabel as fmtTime } from '@/lib/scheduling'
+import { formatSlotLabel as fmtTime, slotsForDayOfWeek } from '@/lib/scheduling'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -11,10 +11,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  // Validate requested time against the admin's current schedule
+  // Validate the requested time against that weekday's schedule
   const settings = await getSettings()
-  if (!settings.slots.includes(requestedTime)) {
-    return NextResponse.json({ error: 'Invalid requested time' }, { status: 400 })
+  const [ry, rm, rd] = requestedDate.split('-').map(Number)
+  const requestedDow = new Date(ry, rm - 1, rd).getDay()
+  if (!slotsForDayOfWeek(settings, requestedDow).includes(requestedTime)) {
+    return NextResponse.json({ error: 'That time is not available on the requested day.' }, { status: 400 })
   }
 
   const appointments = await getAppointments()

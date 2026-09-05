@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, setAppointments, getBlocked, getCustomers, setCustomers, getSettings } from '@/lib/db'
 import { verifyCustomerSession } from '@/lib/customers'
 import { sendMail, bookingRequestEmailHtml, bookingRequestAdminEmailHtml } from '@/lib/mailer'
-import { formatSlotLabel as fmtTime } from '@/lib/scheduling'
+import { formatSlotLabel as fmtTime, slotsForDayOfWeek } from '@/lib/scheduling'
 
 function dayOfWeek(dateStr: string): number {
   const [y, mo, d] = dateStr.split('-').map(Number)
@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
     getAppointments(), getBlocked(), getSettings(),
   ])
 
-  // Validate time slot against the admin's current schedule
-  if (!settings.slots.includes(time)) {
-    return NextResponse.json({ error: 'Invalid time slot.' }, { status: 400 })
+  // Validate the time against this weekday's schedule
+  if (!slotsForDayOfWeek(settings, dayOfWeek(date)).includes(time)) {
+    return NextResponse.json({ error: 'That time is not available on this day.' }, { status: 400 })
   }
 
   // Check if day is explicitly blocked

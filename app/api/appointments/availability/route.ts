@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, getBlocked, getMobileCharges, getSettings } from '@/lib/db'
-import { expandWithBuffer, filterPastSlots } from '@/lib/scheduling'
+import { expandWithBuffer, filterPastSlots, slotsForDayOfWeek } from '@/lib/scheduling'
 
 function dayOfWeek(dateStr: string): number {
   const [y, mo, d] = dateStr.split('-').map(Number)
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ available: [] })
   }
 
-  const allSlots = settings.slots
+  const allSlots = slotsForDayOfWeek(settings, dayOfWeek(date))
 
   // Build taken set — each appointment blocks itself + overlapping slots (accounting for travel)
   const taken = new Set<string>()

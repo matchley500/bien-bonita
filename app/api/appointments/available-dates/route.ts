@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAppointments, getBlocked, getMobileCharges, getSettings } from '@/lib/db'
-import { expandWithBuffer, filterPastSlots } from '@/lib/scheduling'
+import { expandWithBuffer, filterPastSlots, slotsForDayOfWeek } from '@/lib/scheduling'
 
 // Public — returns YYYY-MM-DD strings in a month that have no bookable slots
 export async function GET(request: NextRequest) {
@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
   const [appointments, blocked, charges, settings] = await Promise.all([
     getAppointments(), getBlocked(), getMobileCharges(), getSettings(),
   ])
-  const allSlots = settings.slots
 
   const unavailable: string[] = []
 
@@ -25,6 +24,13 @@ export async function GET(request: NextRequest) {
 
     // Blocked by specific date or recurring weekday
     if (blocked.dates.includes(date) || blocked.weekdays.includes(dow)) {
+      unavailable.push(date)
+      continue
+    }
+
+    // This weekday's appointment times (may differ day to day)
+    const allSlots = slotsForDayOfWeek(settings, dow)
+    if (allSlots.length === 0) {
       unavailable.push(date)
       continue
     }

@@ -22,6 +22,19 @@ export async function PUT(request: NextRequest) {
     updated.slots = slots
   }
 
+  if (body.daySlots !== undefined) {
+    if (typeof body.daySlots !== 'object' || body.daySlots === null) {
+      return NextResponse.json({ error: 'Invalid per-day hours.' }, { status: 400 })
+    }
+    const cleaned: Record<string, string[]> = {}
+    for (const [dow, list] of Object.entries(body.daySlots)) {
+      if (!/^[0-6]$/.test(dow)) continue
+      // An empty list is allowed — it means that day has no bookable times
+      cleaned[dow] = normalizeSlots(list)
+    }
+    updated.daySlots = cleaned
+  }
+
   if (body.maxClientsPerDay !== undefined) {
     const max = Number(body.maxClientsPerDay)
     if (!Number.isFinite(max) || max < 1) {

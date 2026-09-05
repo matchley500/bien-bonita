@@ -75,8 +75,10 @@ export interface Customer {
 export interface Settings {
   bookingOpen: boolean
   salonAddress: string
-  // Admin-editable booking schedule
+  // Admin-editable booking schedule.
+  // `slots` is the default; `daySlots` overrides it per weekday ("0"=Sun … "6"=Sat).
   slots: string[]
+  daySlots?: Record<string, string[]>
   maxClientsPerDay: number
   // Price of the Builder Gel add-on offered on eligible services
   gelUpgradePrice: number
@@ -196,10 +198,24 @@ export async function getSettings(): Promise<Settings> {
   // Merge with defaults so settings saved before new fields existed stay valid
   const merged = { ...DEFAULT_SETTINGS, ...(raw ?? {}) }
   const slots = normalizeSlots(merged.slots)
+
+  // Per-day overrides: normalize each day's list, keeping empty lists as-is
+  // (an empty list means that day has no bookable times)
+  let daySlots: Record<string, string[]> | undefined
+  if (merged.daySlots && typeof merged.daySlots === 'object') {
+    daySlots = {}
+    for (const [dow, list] of Object.entries(merged.daySlots)) {
+      if (!/^[0-6]$/.test(dow)) continue
+      daySlots[dow] = Array.isArray(list) ? normalizeSlots(list) : []
+    }
+    if (Object.keys(daySlots).length === 0) daySlots = undefined
+  }
+
   return {
     ...merged,
     // Never leave the salon with zero bookable times
     slots: slots.length ? slots : [...DEFAULT_SLOTS],
+    daySlots,
     maxClientsPerDay:
       Number.isFinite(merged.maxClientsPerDay) && merged.maxClientsPerDay > 0
         ? Math.floor(merged.maxClientsPerDay)

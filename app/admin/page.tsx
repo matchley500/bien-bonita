@@ -60,6 +60,8 @@ function toKey(y: number, m: number, d: number) {
 
 // ── Mini Calendar (shared) ───────────────────────────────────────────────────
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function MiniCalendar({
   markers = {},
@@ -183,6 +185,11 @@ export default function AdminDashboard() {
   const [bookingOpen, setBookingOpen] = useState(false)
   const [salonAddress, setSalonAddress] = useState('')
   const [slots, setSlots] = useState<string[]>([...DEFAULT_SLOTS])
+  // Per-weekday appointment times, "0"=Sun … "6"=Sat
+  const [daySlots, setDaySlots] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map(d => [String(d), [...DEFAULT_SLOTS]]))
+  )
+  const [editingDay, setEditingDay] = useState(2) // Tuesday by default
   const [maxClients, setMaxClients] = useState(DEFAULT_MAX_CLIENTS_PER_DAY)
   const [gelPrice, setGelPrice] = useState(DEFAULT_GEL_UPGRADE_PRICE)
   const [savingGelPrice, setSavingGelPrice] = useState(false)
@@ -231,7 +238,13 @@ export default function AdminDashboard() {
         setSalonAddress(settings.salonAddress ?? '')
         // Fall back to defaults if settings failed to load, so the editor is
         // never blank (saving an empty schedule is rejected anyway)
-        setSlots(settings.slots?.length ? settings.slots : [...DEFAULT_SLOTS])
+        const baseSlots = settings.slots?.length ? settings.slots : [...DEFAULT_SLOTS]
+        setSlots(baseSlots)
+        // Days without their own hours start from the default set
+        setDaySlots(Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map(d => [
+          String(d),
+          settings.daySlots?.[String(d)] ?? [...baseSlots],
+        ])))
         setMaxClients(settings.maxClientsPerDay ?? DEFAULT_MAX_CLIENTS_PER_DAY)
         setGelPrice(settings.gelUpgradePrice ?? DEFAULT_GEL_UPGRADE_PRICE)
         setCustomers(Array.isArray(custs) ? custs : [])
@@ -540,10 +553,18 @@ export default function AdminDashboard() {
   const handleSettingsSave = async () => {
     setSavingSettings(true)
     setScheduleError('')
-    const cleaned = Array.from(new Set(slots.filter(s => /^\d{2}:\d{2}$/.test(s))))
-      .sort((a, b) => a.localeCompare(b))
-    if (cleaned.length === 0) {
-      setScheduleError('Add at least one appointment time.')
+    const clean = (list: string[]) =>
+      Array.from(new Set(list.filter(s => /^\d{2}:\d{2}$/.test(s)))).sort((a, b) => a.localeCompare(b))
+
+    const cleanedDays = Object.fromEntries(
+      Object.entries(daySlots).map(([dow, list]) => [dow, clean(list)])
+    )
+    // Every day that's open for booking needs at least one time
+    const emptyOpenDay = [0, 1, 2, 3, 4, 5, 6].find(
+      d => !blocked.weekdays.includes(d) && cleanedDays[String(d)].length === 0
+    )
+    if (emptyOpenDay !== undefined) {
+      setScheduleError(`${DAY_NAMES[emptyOpenDay]} is open for booking but has no times. Add a time or close the day.`)
       setSavingSettings(false)
       return
     }
@@ -555,7 +576,13 @@ export default function AdminDashboard() {
     const res = await fetch('/api/admin/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookingOpen, salonAddress, slots: cleaned, maxClientsPerDay: maxClients }),
+      body: JSON.stringify({
+        bookingOpen,
+        salonAddress,
+        slots: clean(slots).length ? clean(slots) : cleanedDays[String(editingDay)],
+        daySlots: cleanedDays,
+        maxClientsPerDay: maxClients,
+      }),
     })
     const saved = await res.json().catch(() => null)
     setSavingSettings(false)
@@ -563,7 +590,7 @@ export default function AdminDashboard() {
       setScheduleError(saved?.error ?? 'Could not save settings.')
       return
     }
-    if (saved?.slots) setSlots(saved.slots)
+    if (saved?.daySlots) setDaySlots(d => ({ ...d, ...saved.daySlots }))
     setSettingsSaved(true)
     setTimeout(() => setSettingsSaved(false), 2500)
   }
@@ -609,7 +636,15 @@ export default function AdminDashboard() {
   }
 
   // ── Derived ──
-  const timeSlots = slots.map(v => ({ value: v, label: formatSlotLabel(v) }))
+  // Times offered on a given date, honoring that weekday's custom hours
+  const slotsForDate = (date: string) => {
+    if (!date) return slots
+    const [y, m, d] = date.split('-').map(Number)
+    const dow = new Date(y, m - 1, d).getDay()
+    return daySlots[String(dow)] ?? slots
+  }
+  const timeOptions = (date: string) =>
+    slotsForDate(date).map(v => ({ value: v, label: formatSlotLabel(v) }))
   const apptDateSet = new Set(appointments.filter(a => a.status !== 'rejected').map(a => a.date))
   const blockedDateSet = new Set(blocked.dates)
   const calMarkers: Record<string, 'appt' | 'blocked' | 'both'> = {}
@@ -825,7 +860,7 @@ export default function AdminDashboard() {
                     <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Time *</label>
                     <select required value={apptForm.time} onChange={e => setApptForm(f => ({ ...f, time: e.target.value }))} className="input-field">
                       <option value="">Select…</option>
-                      {timeSlots.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      {timeOptions(apptForm.date).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1200,7 +1235,7 @@ export default function AdminDashboard() {
                     <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Time *</label>
                     <select required value={blockTime} onChange={e => setBlockTime(e.target.value)} className="input-field">
                       <option value="">Select a time…</option>
-                      {timeSlots.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      {timeOptions(blockDate).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>
                   </div>
                 )}
@@ -1253,7 +1288,7 @@ export default function AdminDashboard() {
                   <div>
                     <p className="font-body text-xs uppercase tracking-widest text-darkbrown/40 mb-3">Time Slots</p>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {timeSlots.map(slot => {
+                      {timeOptions(selectedDate).map(slot => {
                         const isBlockedSlot = dayBlockedSlots.includes(slot.value)
                         const isBooked = dayAppointments.some(a => a.time === slot.value)
                         return (
@@ -1812,18 +1847,72 @@ export default function AdminDashboard() {
               </p>
             </div>
 
-            {/* Appointment times */}
+            {/* Appointment times, per day */}
             <div>
               <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-2">
                 Appointment Times
               </label>
+
+              {/* Pick which day to edit */}
+              <div className="grid grid-cols-7 gap-1 mb-3">
+                {DAY_SHORT.map((label, dow) => {
+                  const isClosed = blocked.weekdays.includes(dow)
+                  const count = (daySlots[String(dow)] ?? []).length
+                  return (
+                    <button
+                      key={dow}
+                      type="button"
+                      onClick={() => setEditingDay(dow)}
+                      className={`py-2 px-0.5 rounded-xl border-2 text-[10px] font-body font-bold tracking-wide transition-all ${
+                        editingDay === dow
+                          ? 'border-terracotta-500 bg-terracotta-500 text-cream'
+                          : isClosed
+                          ? 'border-sand/40 bg-parchment/40 text-darkbrown/25'
+                          : 'border-sand/50 text-darkbrown/60 hover:border-terracotta-300'
+                      }`}
+                      title={isClosed ? `${DAY_NAMES[dow]} is closed` : `${count} time${count === 1 ? '' : 's'}`}
+                    >
+                      {label}
+                      <span className="block text-[9px] font-normal opacity-70">
+                        {isClosed ? '—' : count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex items-baseline justify-between mb-2">
+                <p className="font-sub font-bold text-darkbrown text-sm">
+                  {DAY_NAMES[editingDay]}
+                  {blocked.weekdays.includes(editingDay) && (
+                    <span className="font-body font-normal text-xs text-darkbrown/40"> · closed for booking</span>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const source = daySlots[String(editingDay)] ?? []
+                    setDaySlots(d => Object.fromEntries(
+                      Object.keys(d).map(k => [k, [...source]])
+                    ))
+                  }}
+                  className="text-[11px] font-body font-bold text-teal-600 uppercase tracking-wider hover:underline"
+                  title="Give every day these same times"
+                >
+                  Copy to all days
+                </button>
+              </div>
+
               <div className="space-y-2">
-                {slots.map((slot, i) => (
+                {(daySlots[String(editingDay)] ?? []).map((slot, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <input
                       type="time"
                       value={slot}
-                      onChange={e => setSlots(s => s.map((v, idx) => (idx === i ? e.target.value : v)))}
+                      onChange={e => setDaySlots(d => ({
+                        ...d,
+                        [String(editingDay)]: (d[String(editingDay)] ?? []).map((v, idx) => (idx === i ? e.target.value : v)),
+                      }))}
                       className="input-field flex-1"
                     />
                     <span className="font-body text-xs text-darkbrown/40 w-20 shrink-0">
@@ -1831,7 +1920,10 @@ export default function AdminDashboard() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setSlots(s => s.filter((_, idx) => idx !== i))}
+                      onClick={() => setDaySlots(d => ({
+                        ...d,
+                        [String(editingDay)]: (d[String(editingDay)] ?? []).filter((_, idx) => idx !== i),
+                      }))}
                       className="text-red-400 hover:text-red-600 text-lg leading-none px-2 shrink-0"
                       title="Remove this time"
                     >
@@ -1839,17 +1931,25 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 ))}
+                {(daySlots[String(editingDay)] ?? []).length === 0 && (
+                  <p className="font-body text-xs text-darkbrown/30 italic py-1">
+                    No times on {DAY_NAMES[editingDay]}.
+                  </p>
+                )}
               </div>
               <button
                 type="button"
-                onClick={() => setSlots(s => [...s, '09:00'])}
+                onClick={() => setDaySlots(d => ({
+                  ...d,
+                  [String(editingDay)]: [...(d[String(editingDay)] ?? []), '09:00'],
+                }))}
                 className="mt-2 text-xs font-body font-bold text-terracotta-500 uppercase tracking-wider hover:underline"
               >
-                + Add a time
+                + Add a time to {DAY_SHORT[editingDay]}
               </button>
               <p className="font-body text-[11px] text-darkbrown/30 mt-2">
-                Each appointment blocks 2 hours plus a 30-minute grace period, so leave at least 2½ hours
-                between times or booking one will make the next unavailable.
+                Each day can have its own hours. Appointments block 2 hours plus a 30-minute grace period,
+                so leave at least 2½ hours between times or booking one will make the next unavailable.
               </p>
             </div>
 
@@ -1978,10 +2078,10 @@ export default function AdminDashboard() {
                   >
                     <option value="">Select…</option>
                     {/* Keep the original time selectable if the schedule has changed since booking */}
-                    {editForm.time && !slots.includes(editForm.time) && (
+                    {editForm.time && !slotsForDate(editForm.date).includes(editForm.time) && (
                       <option value={editForm.time}>{fmtTime(editForm.time)} (current)</option>
                     )}
-                    {timeSlots.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    {timeOptions(editForm.date).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
               </div>
