@@ -2,55 +2,255 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════════════════════════════════════════════
+   SEASONAL PALETTES
+   Every accent color is a CSS variable so the whole site re-themes by
+   swapping data-season on <html>. Values are space-separated RGB triplets
+   consumed by Tailwind as rgb(var(--x) / <alpha-value>).
+
+   --terracotta-*  primary   (buttons, prices, headings accent)
+   --teal-*        secondary (script text, confirmations)
+   --mustard-*     tertiary  (underline bars, pending badges)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Autumn — light yellows, oranges, pinks (also the fallback) */
+:root,
+:root[data-season='autumn'] {
+  --terracotta-50: 253 243 236;
+  --terracotta-100: 250 227 208;
+  --terracotta-200: 244 192 154;
+  --terracotta-300: 235 151 99;
+  --terracotta-400: 223 115 56;
+  --terracotta-500: 196 98 45;
+  --terracotta-600: 168 78 34;
+  --terracotta-700: 138 61 26;
+  --terracotta-800: 110 47 20;
+  --terracotta-900: 61 25 8;
+
+  --teal-50: 252 244 246;
+  --teal-100: 249 229 234;
+  --teal-200: 242 200 212;
+  --teal-300: 233 166 187;
+  --teal-400: 221 132 161;
+  --teal-500: 197 96 131;
+  --teal-600: 168 76 108;
+  --teal-700: 138 62 88;
+  --teal-800: 107 48 68;
+  --teal-900: 64 29 41;
+
+  --mustard-50: 253 248 231;
+  --mustard-100: 250 239 197;
+  --mustard-200: 245 218 135;
+  --mustard-300: 239 194 74;
+  --mustard-400: 227 168 39;
+  --mustard-500: 200 144 16;
+  --mustard-600: 166 114 8;
+  --mustard-700: 130 87 5;
+  --mustard-800: 94 62 3;
+  --mustard-900: 58 38 2;
+
+  --parchment: 245 237 214;
+  --cream: 250 244 228;
+  --sand: 212 184 150;
+  --darkbrown: 44 26 14;
+
+  --glow-a: 196 98 45;
+  --glow-b: 197 96 131;
+  --glow-c: 200 144 16;
+}
+
+/* Winter — pinks and cool blues */
+:root[data-season='winter'] {
+  --terracotta-50: 253 242 246;
+  --terracotta-100: 250 226 236;
+  --terracotta-200: 244 197 217;
+  --terracotta-300: 236 160 192;
+  --terracotta-400: 226 124 168;
+  --terracotta-500: 209 88 141;
+  --terracotta-600: 183 68 118;
+  --terracotta-700: 152 54 97;
+  --terracotta-800: 119 42 76;
+  --terracotta-900: 71 25 45;
+
+  --teal-50: 240 246 252;
+  --teal-100: 219 233 248;
+  --teal-200: 183 211 240;
+  --teal-300: 142 185 229;
+  --teal-400: 106 160 217;
+  --teal-500: 68 128 190;
+  --teal-600: 54 104 158;
+  --teal-700: 42 82 126;
+  --teal-800: 31 61 94;
+  --teal-900: 19 37 58;
+
+  --mustard-50: 245 247 252;
+  --mustard-100: 230 236 247;
+  --mustard-200: 203 216 238;
+  --mustard-300: 172 192 226;
+  --mustard-400: 141 167 212;
+  --mustard-500: 108 138 192;
+  --mustard-600: 85 111 162;
+  --mustard-700: 66 88 129;
+  --mustard-800: 48 64 96;
+  --mustard-900: 29 40 60;
+
+  --parchment: 247 242 246;
+  --cream: 253 250 252;
+  --sand: 208 196 210;
+  --darkbrown: 40 30 44;
+
+  --glow-a: 209 88 141;
+  --glow-b: 68 128 190;
+  --glow-c: 141 167 212;
+}
+
+/* Spring — baby blue and light pink */
+:root[data-season='spring'] {
+  --terracotta-50: 253 244 248;
+  --terracotta-100: 251 229 239;
+  --terracotta-200: 246 203 222;
+  --terracotta-300: 240 172 202;
+  --terracotta-400: 233 141 181;
+  --terracotta-500: 219 110 159;
+  --terracotta-600: 192 86 133;
+  --terracotta-700: 160 68 109;
+  --terracotta-800: 126 53 86;
+  --terracotta-900: 76 32 51;
+
+  --teal-50: 240 249 253;
+  --teal-100: 218 240 250;
+  --teal-200: 180 224 245;
+  --teal-300: 137 203 236;
+  --teal-400: 97 180 224;
+  --teal-500: 70 152 199;
+  --teal-600: 55 123 164;
+  --teal-700: 44 97 129;
+  --teal-800: 32 72 96;
+  --teal-900: 19 44 59;
+
+  --mustard-50: 249 246 253;
+  --mustard-100: 240 232 250;
+  --mustard-200: 224 207 244;
+  --mustard-300: 203 176 235;
+  --mustard-400: 182 146 225;
+  --mustard-500: 157 116 206;
+  --mustard-600: 129 92 172;
+  --mustard-700: 103 73 137;
+  --mustard-800: 77 54 102;
+  --mustard-900: 47 33 62;
+
+  --parchment: 246 248 251;
+  --cream: 253 252 254;
+  --sand: 201 210 221;
+  --darkbrown: 42 38 50;
+
+  --glow-a: 219 110 159;
+  --glow-b: 97 180 224;
+  --glow-c: 182 146 225;
+}
+
+/* Summer — vibrant reds and pinks */
+:root[data-season='summer'] {
+  --terracotta-50: 254 242 242;
+  --terracotta-100: 254 226 226;
+  --terracotta-200: 252 194 194;
+  --terracotta-300: 248 152 152;
+  --terracotta-400: 242 106 106;
+  --terracotta-500: 224 58 58;
+  --terracotta-600: 192 44 44;
+  --terracotta-700: 155 40 40;
+  --terracotta-800: 118 34 34;
+  --terracotta-900: 70 20 20;
+
+  --teal-50: 253 242 248;
+  --teal-100: 252 223 240;
+  --teal-200: 250 191 224;
+  --teal-300: 246 147 201;
+  --teal-400: 237 100 174;
+  --teal-500: 212 56 143;
+  --teal-600: 178 43 118;
+  --teal-700: 147 36 98;
+  --teal-800: 114 28 76;
+  --teal-900: 69 17 46;
+
+  --mustard-50: 255 247 237;
+  --mustard-100: 254 235 212;
+  --mustard-200: 253 211 165;
+  --mustard-300: 251 180 112;
+  --mustard-400: 247 147 62;
+  --mustard-500: 230 113 24;
+  --mustard-600: 193 90 17;
+  --mustard-700: 153 71 14;
+  --mustard-800: 115 53 11;
+  --mustard-900: 69 32 7;
+
+  --parchment: 255 244 240;
+  --cream: 255 251 249;
+  --sand: 232 186 176;
+  --darkbrown: 58 26 26;
+
+  --glow-a: 224 58 58;
+  --glow-b: 212 56 143;
+  --glow-c: 247 147 62;
+}
+
 @layer base {
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-parchment text-darkbrown;
     background-image:
-      radial-gradient(ellipse at 15% 20%, rgba(196,98,45,0.07) 0%, transparent 55%),
-      radial-gradient(ellipse at 85% 75%, rgba(74,130,128,0.07) 0%, transparent 55%),
-      radial-gradient(ellipse at 50% 50%, rgba(200,144,16,0.04) 0%, transparent 70%);
+      radial-gradient(ellipse at 15% 20%, rgb(var(--glow-a) / 0.08) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 75%, rgb(var(--glow-b) / 0.08) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 50%, rgb(var(--glow-c) / 0.05) 0%, transparent 70%);
+    background-attachment: fixed;
   }
 }
 
 @layer components {
 
-  /* ── Buttons ── */
+  /* ── Buttons — soft, pill-shaped bubbles that lift on hover ── */
   .btn-primary {
-    @apply bg-terracotta-500 text-cream px-7 py-3 rounded-full font-body font-bold
+    @apply bg-terracotta-500 text-cream px-8 py-3.5 rounded-full font-body font-bold
            tracking-widest uppercase text-sm
-           hover:bg-terracotta-400 active:scale-95
+           hover:bg-terracotta-400 hover:-translate-y-0.5 active:translate-y-0 active:scale-95
            transition-all duration-200 inline-block text-center
-           shadow-[0_4px_14px_rgba(196,98,45,0.35)];
+           shadow-[0_6px_18px_-4px_rgb(var(--terracotta-500)/0.55),inset_0_1px_0_rgb(255_255_255/0.25)]
+           hover:shadow-[0_10px_24px_-4px_rgb(var(--terracotta-500)/0.6),inset_0_1px_0_rgb(255_255_255/0.3)];
   }
 
   .btn-secondary {
-    @apply border-2 border-darkbrown text-darkbrown px-7 py-3 rounded-full font-body font-bold
+    @apply border-2 border-darkbrown text-darkbrown px-8 py-3.5 rounded-full font-body font-bold
            tracking-widest uppercase text-sm
-           hover:bg-darkbrown hover:text-cream active:scale-95
-           transition-all duration-200 inline-block text-center;
+           hover:bg-darkbrown hover:text-cream hover:-translate-y-0.5
+           active:translate-y-0 active:scale-95
+           transition-all duration-200 inline-block text-center
+           shadow-[0_3px_12px_-4px_rgb(var(--darkbrown)/0.35)]
+           hover:shadow-[0_8px_20px_-4px_rgb(var(--darkbrown)/0.45)];
   }
 
   .btn-teal {
-    @apply bg-teal-500 text-cream px-7 py-3 rounded-full font-body font-bold
+    @apply bg-teal-500 text-cream px-8 py-3.5 rounded-full font-body font-bold
            tracking-widest uppercase text-sm
-           hover:bg-teal-400 active:scale-95
+           hover:bg-teal-400 hover:-translate-y-0.5 active:translate-y-0 active:scale-95
            transition-all duration-200 inline-block text-center
-           shadow-[0_4px_14px_rgba(74,130,128,0.35)];
+           shadow-[0_6px_18px_-4px_rgb(var(--teal-500)/0.55),inset_0_1px_0_rgb(255_255_255/0.25)]
+           hover:shadow-[0_10px_24px_-4px_rgb(var(--teal-500)/0.6),inset_0_1px_0_rgb(255_255_255/0.3)];
   }
 
   /* ── Inputs ── */
   .input-field {
-    @apply w-full px-4 py-3 border-2 border-sand/60 bg-cream/80
+    @apply w-full px-5 py-3 border-2 border-sand/60 bg-cream/80
            focus:outline-none focus:border-terracotta-400 focus:bg-cream
            font-body text-darkbrown placeholder:text-sand
-           rounded-2xl transition-colors duration-150;
+           rounded-full transition-colors duration-150;
   }
 
   /* ── Cards ── */
   .card {
-    @apply bg-cream/90 border border-sand/40 rounded-3xl p-6
-           shadow-[0_2px_20px_rgba(44,26,14,0.08)];
+    @apply bg-cream/90 border border-sand/40 rounded-[2rem] p-6
+           shadow-[0_4px_24px_rgb(var(--darkbrown)/0.08)];
   }
 
   /* ── Badges ── */
@@ -80,4 +280,38 @@
   .wave-divider {
     @apply w-full overflow-hidden leading-none;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BUBBLE SHAPES
+   Plain CSS (outside @layer) so it wins over Tailwind's radius utilities.
+   Type+class selectors keep this scoped to controls — large surfaces such as
+   .card and the service tiles (rounded-3xl) keep their own softer corners.
+   ══════════════════════════════════════════════════════════════════════════ */
+button.rounded-lg,
+button.rounded-xl,
+button.rounded-2xl,
+a.rounded-lg,
+a.rounded-xl,
+a.rounded-2xl,
+span.rounded-lg,
+span.rounded-xl {
+  border-radius: 9999px;
+}
+
+/* Multi-line inputs can't be pills — keep them generously rounded instead */
+textarea.input-field,
+select.input-field {
+  border-radius: 1.5rem;
+}
+
+/* Small controls get a gentle lift too */
+button.rounded-lg,
+button.rounded-xl {
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.15s ease, border-color 0.15s ease;
+}
+button.rounded-lg:active,
+button.rounded-xl:active {
+  transform: scale(0.94);
 }

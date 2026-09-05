@@ -29,7 +29,7 @@ export default function Home() {
       {/* ── Wavy divider terracotta ── */}
       <div className="wave-divider -mt-1">
         <svg viewBox="0 0 1440 80" preserveAspectRatio="none" className="w-full h-16 md:h-20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0,40 C180,80 360,0 540,40 C720,80 900,0 1080,40 C1260,80 1380,20 1440,40 L1440,80 L0,80 Z" fill="#C4622D"/>
+          <path d="M0,40 C180,80 360,0 540,40 C720,80 900,0 1080,40 C1260,80 1380,20 1440,40 L1440,80 L0,80 Z" className="fill-terracotta-500"/>
         </svg>
       </div>
 
@@ -87,8 +87,8 @@ export default function Home() {
       {/* ── Wavy divider teal ── */}
       <div className="wave-divider -mt-1">
         <svg viewBox="0 0 1440 80" preserveAspectRatio="none" className="w-full h-16 md:h-20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0,40 C180,0 360,80 540,40 C720,0 900,80 1080,40 C1260,0 1380,60 1440,40 L1440,0 L0,0 Z" fill="#C4622D"/>
-          <path d="M0,60 C200,20 400,80 600,50 C800,20 1000,80 1200,50 C1350,30 1420,60 1440,60 L1440,80 L0,80 Z" fill="#4A8280"/>
+          <path d="M0,40 C180,0 360,80 540,40 C720,0 900,80 1080,40 C1260,0 1380,60 1440,40 L1440,0 L0,0 Z" className="fill-terracotta-500"/>
+          <path d="M0,60 C200,20 400,80 600,50 C800,20 1000,80 1200,50 C1350,30 1420,60 1440,60 L1440,80 L0,80 Z" className="fill-teal-500"/>
         </svg>
       </div>
 
@@ -113,8 +113,8 @@ export default function Home() {
       {/* ── Footer wave transition ── */}
       <div className="wave-divider -mt-1">
         <svg viewBox="0 0 1440 60" preserveAspectRatio="none" className="w-full h-12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0,30 C240,60 480,0 720,30 C960,60 1200,0 1440,30 L1440,0 L0,0 Z" fill="#4A8280"/>
-          <path d="M0,60 L1440,60 L1440,30 C1200,0 960,60 720,30 C480,0 240,60 0,30 Z" fill="#2C1A0E"/>
+          <path d="M0,30 C240,60 480,0 720,30 C960,60 1200,0 1440,30 L1440,0 L0,0 Z" className="fill-teal-500"/>
+          <path d="M0,60 L1440,60 L1440,30 C1200,0 960,60 720,30 C480,0 240,60 0,30 Z" className="fill-darkbrown"/>
         </svg>
       </div>
     </>

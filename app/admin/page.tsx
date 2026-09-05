@@ -26,7 +26,7 @@ interface Appointment {
   rescheduleRequest?: RescheduleRequest
 }
 interface MobileArea { id: string; label: string; fee: number; travelMinutes?: number }
-interface CustomerAccount { id: string; email: string; name: string; createdAt: string; status?: 'pending' | 'active' }
+interface CustomerAccount { id: string; email: string; name: string; phone?: string; createdAt: string; status?: 'pending' | 'active' }
 interface BlockedData {
   dates: string[]
   slots: { date: string; time: string }[]
@@ -117,7 +117,7 @@ function MiniCalendar({
           const isToday = key === todayKey
           return (
             <button key={day} onClick={() => onSelectDate(isSelected ? '' : key)}
-              className={`relative mx-auto w-9 h-9 rounded-full text-xs font-body flex items-center justify-center transition-all
+              className={`relative mx-auto w-11 h-11 rounded-full text-sm font-body flex items-center justify-center transition-all
                 ${isSelected ? 'bg-terracotta-500 text-cream font-bold shadow' :
                   isWeekdayBlocked ? 'bg-red-50 text-red-300 line-through' :
                   isToday ? 'border-2 border-terracotta-400 text-terracotta-600 font-bold hover:bg-terracotta-50' :
@@ -201,8 +201,9 @@ export default function AdminDashboard() {
   const [broadcastState, setBroadcastState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [broadcastInfo, setBroadcastInfo] = useState('')
 
-  // Service form ref for scroll-to
+  // Form refs for scroll-to
   const svcFormRef = useRef<HTMLFormElement>(null)
+  const apptFormRef = useRef<HTMLFormElement>(null)
 
   const router = useRouter()
 
@@ -415,6 +416,26 @@ export default function AdminDashboard() {
     if (!confirm(`Remove ${name}'s account? They will no longer be able to log in. Their appointments are not affected.`)) return
     await fetch(`/api/admin/customers/${id}`, { method: 'DELETE' })
     await refreshCustomers()
+  }
+
+  // Accounts created before signup collected phones fall back to their latest booking
+  const clientPhone = (email: string) =>
+    appointments
+      .filter(a => a.customerEmail?.toLowerCase() === email.toLowerCase() && a.customerPhone)
+      .sort((a, b) => b.date.localeCompare(a.date))[0]?.customerPhone ?? ''
+
+  // ── Book a follow-up for an existing client ──
+  const startFollowUp = (client: { customerName: string; customerEmail?: string; customerPhone?: string }) => {
+    setApptForm({
+      ...EMPTY_APPT,
+      date: selectedDate,
+      customerName: client.customerName,
+      customerEmail: client.customerEmail ?? '',
+      customerPhone: client.customerPhone ?? '',
+    })
+    setShowApptForm(true)
+    setTab('appointments')
+    setTimeout(() => apptFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80)
   }
 
   // ── Announcement broadcast ──
@@ -670,11 +691,17 @@ export default function AdminDashboard() {
             </button>
 
             {showApptForm && (
-              <form onSubmit={handleApptSave} className="card space-y-3">
-                <h3 className="font-display text-xl text-darkbrown">New Appointment</h3>
+              <form ref={apptFormRef} onSubmit={handleApptSave} className="card space-y-3">
+                <h3 className="font-display text-xl text-darkbrown">
+                  {apptForm.customerName ? `Follow-Up for ${apptForm.customerName}` : 'New Appointment'}
+                </h3>
                 <div>
                   <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Client Name *</label>
                   <input type="text" required value={apptForm.customerName} onChange={e => setApptForm(f => ({ ...f, customerName: e.target.value }))} className="input-field" placeholder="Full name" />
+                </div>
+                <div>
+                  <label className="block font-body text-xs uppercase tracking-widest text-darkbrown/50 mb-1">Email</label>
+                  <input type="email" value={apptForm.customerEmail} onChange={e => setApptForm(f => ({ ...f, customerEmail: e.target.value }))} className="input-field" placeholder="client@email.com" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -812,6 +839,13 @@ export default function AdminDashboard() {
                                 All Done
                               </button>
                             )}
+                            <button
+                              onClick={() => startFollowUp(appt)}
+                              className="text-xs font-body font-bold text-terracotta-600 hover:text-terracotta-800 uppercase tracking-wider transition-colors px-3 py-1 rounded-lg hover:bg-terracotta-50 border border-terracotta-200"
+                              title="Book this client's next appointment"
+                            >
+                              📅 Follow-Up
+                            </button>
                             <button
                               onClick={() => handleApptEditOpen(appt)}
                               className="text-xs font-body font-bold text-teal-600 hover:text-teal-800 uppercase tracking-wider transition-colors px-3 py-1 rounded-lg hover:bg-teal-50 border border-teal-300"
@@ -1399,6 +1433,19 @@ export default function AdminDashboard() {
                         className="text-xs font-body font-bold text-forest-600 hover:text-forest-800 uppercase tracking-wider transition-colors px-3 py-1.5 rounded-lg bg-forest-50 hover:bg-forest-100 border border-forest-300"
                       >
                         ✓ Approve
+                      </button>
+                    )}
+                    {acct.status !== 'pending' && (
+                      <button
+                        onClick={() => startFollowUp({
+                          customerName: acct.name,
+                          customerEmail: acct.email,
+                          customerPhone: acct.phone || clientPhone(acct.email),
+                        })}
+                        className="text-xs font-body font-bold text-terracotta-600 hover:text-terracotta-800 uppercase tracking-wider transition-colors px-3 py-1.5 rounded-lg bg-terracotta-50 hover:bg-terracotta-100 border border-terracotta-200"
+                        title="Start a new appointment pre-filled with this client's details"
+                      >
+                        📅 Book Follow-Up
                       </button>
                     )}
                     <button

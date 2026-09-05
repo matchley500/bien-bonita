@@ -3,6 +3,8 @@ import { Cormorant_Garamond, Great_Vibes, Playfair_Display, Josefin_Sans } from 
 import './globals.css'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import SeasonSync from '@/components/SeasonSync'
+import { currentSeason } from '@/lib/season'
 
 const alfa = Cormorant_Garamond({
   subsets: ['latin'], weight: ['300', '400', '500', '600', '700'],
@@ -29,8 +31,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${alfa.variable} ${pacifico.variable} ${playfair.variable} ${josefin.variable}`}>
+    <html
+      lang="en"
+      data-season={currentSeason()}
+      className={`${alfa.variable} ${pacifico.variable} ${playfair.variable} ${josefin.variable}`}
+    >
       <body className="font-body bg-parchment text-darkbrown min-h-screen flex flex-col">
+        <SeasonSync />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
