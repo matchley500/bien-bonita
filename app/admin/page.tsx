@@ -162,6 +162,9 @@ export default function AdminDashboard() {
   const [showApptForm, setShowApptForm] = useState(false)
   const [apptForm, setApptForm] = useState(EMPTY_APPT)
   const [savingAppt, setSavingAppt] = useState(false)
+  const [apptNotice, setApptNotice] = useState('')
+  // Set by the Book & Notify button just before the form submits
+  const notifyOnSaveRef = useRef(false)
 
   // Availability / block form
   const [blockDate, setBlockDate] = useState('')
@@ -263,14 +266,26 @@ export default function AdminDashboard() {
 
   // ── Appointment actions ──
   const handleApptSave = async (e: React.FormEvent) => {
-    e.preventDefault(); setSavingAppt(true)
-    await fetch('/api/admin/appointments', {
+    e.preventDefault()
+    const notify = notifyOnSaveRef.current
+    notifyOnSaveRef.current = false
+    setSavingAppt(true)
+    const res = await fetch('/api/admin/appointments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...apptForm, total: Number(apptForm.total) || 0 }),
+      body: JSON.stringify({ ...apptForm, total: Number(apptForm.total) || 0, notifyCustomer: notify }),
     })
+    const saved = await res.json().catch(() => ({}))
     await refreshAppointments()
     setApptForm(EMPTY_APPT); setShowApptForm(false); setSavingAppt(false)
+    if (notify) {
+      setApptNotice(saved.emailed
+        ? '✓ Appointment booked — confirmation emailed to the client.'
+        : '⚠ Appointment booked, but the confirmation email could not be sent.')
+    } else {
+      setApptNotice('✓ Appointment booked.')
+    }
+    setTimeout(() => setApptNotice(''), 5000)
   }
   const handleApptDelete = async (id: string) => {
     if (!confirm('Cancel this appointment? This will free up the time slot.')) return
@@ -734,10 +749,40 @@ export default function AdminDashboard() {
                     <input type="text" value={apptForm.notes} onChange={e => setApptForm(f => ({ ...f, notes: e.target.value }))} className="input-field" placeholder="Optional" />
                   </div>
                 </div>
-                <button type="submit" disabled={savingAppt} className="btn-primary w-full disabled:opacity-50">
-                  {savingAppt ? 'Saving…' : 'Save Appointment'}
-                </button>
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="submit"
+                    onClick={() => { notifyOnSaveRef.current = true }}
+                    disabled={savingAppt || !apptForm.customerEmail}
+                    className="btn-primary w-full text-xs disabled:opacity-40"
+                    title={apptForm.customerEmail
+                      ? 'Book and email the client a confirmation with a calendar invite'
+                      : 'Add an email address to notify the client'}
+                  >
+                    {savingAppt ? 'Saving…' : '✉ Book & Notify Client'}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingAppt}
+                    className="w-full py-2.5 rounded-full border-2 border-sand/60 text-darkbrown/60 font-body text-xs font-bold uppercase tracking-widest hover:border-darkbrown/30 hover:text-darkbrown transition-colors disabled:opacity-50"
+                  >
+                    {savingAppt ? 'Saving…' : 'Book Without Emailing'}
+                  </button>
+                  {!apptForm.customerEmail && (
+                    <p className="text-center font-body text-[11px] text-darkbrown/40">
+                      Add an email above to send a confirmation.
+                    </p>
+                  )}
+                </div>
               </form>
+            )}
+
+            {apptNotice && (
+              <p className={`text-center font-body text-xs font-bold tracking-wide px-4 py-2.5 rounded-2xl ${
+                apptNotice.startsWith('⚠') ? 'bg-red-50 text-red-500' : 'bg-forest-50 text-forest-700'
+              }`}>
+                {apptNotice}
+              </p>
             )}
           </div>
 

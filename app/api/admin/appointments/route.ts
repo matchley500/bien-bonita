@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession } from '@/lib/auth'
-import { getAppointments, setAppointments } from '@/lib/db'
+import { getAppointments, setAppointments, getSettings } from '@/lib/db'
+import { sendMail, confirmationEmailHtml, generateICS } from '@/lib/mailer'
+
+const SLOT_LABELS: Record<string, string> = {
+  '09:30': '9:30 AM', '12:00': '12:00 PM', '14:30': '2:30 PM',
+}
+function fmtTime(val: string) {
+  if (SLOT_LABELS[val]) return SLOT_LABELS[val]
+  const [h, m] = val.split(':').map(Number)
+  if (isNaN(h) || isNaN(m)) return val
+  const period = h < 12 ? 'AM' : 'PM'
+  const dh = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${dh}:${String(m).padStart(2, '0')} ${period}`
+}
 
 // Admin — view all appointments
 export async function GET() {
@@ -29,10 +42,53 @@ export async function POST(request: NextRequest) {
     mobileArea: '',
     mobileFee: 0,
     createdAt: new Date().toISOString(),
+    // Booked by the admin directly, so it's confirmed from the start
+    status: 'confirmed' as const,
   }
 
   appointments.push(newAppointment)
   await setAppointments(appointments)
 
-  return NextResponse.json(newAppointment, { status: 201 })
+  // Optionally email the client their confirmation + calendar invite
+  let emailed = false
+  if (
+    body.notifyCustomer === true &&
+    newAppointment.customerEmail &&
+    process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD
+  ) {
+    try {
+      const settings = await getSettings()
+      const ics = generateICS({
+        id: newAppointment.id,
+        date: newAppointment.date,
+        time: newAppointment.time,
+        customerName: newAppointment.customerName,
+        serviceNames: newAppointment.serviceNames,
+        location: settings.salonAddress || 'Bien Bonita Nails & Spa',
+      })
+      await sendMail({
+        from: `"Bien Bonita Nails & Spa" <${process.env.GMAIL_USER}>`,
+        to: newAppointment.customerEmail,
+        subject: `You're booked! ✨ Bien Bonita Appointment Confirmed`,
+        html: confirmationEmailHtml({
+          customerName: newAppointment.customerName,
+          customerEmail: newAppointment.customerEmail,
+          date: newAppointment.date,
+          time: fmtTime(newAppointment.time),
+          serviceNames: newAppointment.serviceNames,
+          locationType: 'salon',
+          total: newAppointment.total,
+          salonAddress: settings.salonAddress,
+        }),
+        attachments: [{
+          filename: 'appointment.ics',
+          content: ics,
+          contentType: 'text/calendar; charset=utf-8; method=REQUEST',
+        }],
+      })
+      emailed = true
+    } catch (err) { console.error('Booking confirmation email failed:', err) }
+  }
+
+  return NextResponse.json({ ...newAppointment, emailed }, { status: 201 })
 }
