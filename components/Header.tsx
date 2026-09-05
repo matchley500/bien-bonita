@@ -54,6 +54,13 @@ export default function Header() {
           <Link href="/#about" className="block py-2 font-body text-xs tracking-widest uppercase text-darkbrown/60" onClick={() => setMenuOpen(false)}>About</Link>
           <Link href="/dashboard" className="block py-2 font-body text-xs tracking-widest uppercase text-darkbrown/60" onClick={() => setMenuOpen(false)}>My Appointments</Link>
           <Link href="/book" className="btn-primary block text-center mt-3 text-xs" onClick={() => setMenuOpen(false)}>Book Now</Link>
+          <Link
+            href="/admin"
+            className="block pt-3 mt-3 border-t border-sand/30 font-body text-xs tracking-widest uppercase text-darkbrown/35 hover:text-terracotta-500 transition-colors"
+            onClick={() => setMenuOpen(false)}
+          >
+            Admin
+          </Link>
         </nav>
       )}
     </header>
